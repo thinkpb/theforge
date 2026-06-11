@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from forge.audit import AuditBuffer, get_audit_buffer, key_fingerprint
 from forge.auth import require_api_key
 from forge.config import Settings, get_settings
 from forge.gateway import router as gateway
@@ -33,6 +34,8 @@ class ChatCompletionRequest(BaseModel):
 async def chat_completions(
     request: ChatCompletionRequest,
     settings: Settings = Depends(get_settings),
+    api_key: str = Depends(require_api_key),
+    audit: AuditBuffer = Depends(get_audit_buffer),
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
     if request.temperature is not None:
@@ -43,6 +46,8 @@ async def chat_completions(
         model=request.model,
         messages=[m.model_dump() for m in request.messages],
         settings=settings,
+        audit=audit,
+        api_key_hash=key_fingerprint(api_key),
         **params,
     )
 

@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     ollama_base_url: str = "http://localhost:11434"
 
+    # Audit write-behind buffer (ADR-0006). Bounded on purpose: when Postgres is
+    # down long enough to fill the queue, requests get 503 rather than silently
+    # going unaudited.
+    audit_queue_size: int = 10_000
+    audit_flush_batch: int = 100
+
     # model alias -> litellm model string; the gateway only accepts aliases it knows
     model_map: dict[str, str] = {
         "gpt-4o": "openai/gpt-4o",

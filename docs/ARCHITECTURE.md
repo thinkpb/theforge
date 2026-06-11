@@ -69,6 +69,17 @@ roadmap milestone attaches at a known layer — rate limiting and cost tracking 
 the gateway layer; new transports (SDK, dashboard) sit beside `api/` without
 duplicating routing logic.
 
+### Write-behind audit buffer
+Every request through the gateway emits a metadata-only audit record
+([ADR-0006](adr/0006-buffered-audit-log.md)) into a bounded queue in
+[`audit.py`](../src/forge/audit.py); a background worker batch-inserts into an
+append-only Postgres table (enforced by trigger, created in Alembic migration
+0001). **Why:** the request path never blocks on the database, short outages are
+absorbed, and a full queue rejects requests (503) rather than silently dropping
+audit events. The hook lives in [`gateway/router.py`](../src/forge/gateway/router.py)
+`complete()` — the one place where alias, upstream model, tokens, and cost are all
+known — so every future surface inherits auditing.
+
 ### In-process integration tests
 [`tests/conftest.py`](../tests/conftest.py) drives the real ASGI app through httpx's
 `ASGITransport` — full middleware/auth/validation stack, no live server, no network.
@@ -81,12 +92,13 @@ These are roadmap milestones, not oversights:
 
 - **Strategy** — routing and fallback policies (retry on provider error, failover
   chains) will be pluggable strategies on the gateway layer.
-- **Middleware / decorator** — audit logging, PII scrubbing (Presidio), rate
-  limiting (Redis), and cost tracking (Postgres) will wrap the request path as
-  cross-cutting concerns, not be inlined into handlers. Audit + PII are the next
-  milestones, per [ADR-0005](adr/0005-compliance-first-design.md).
-- **Repository** — per-team API keys, audit records, and cost records get a
-  persistence layer behind an interface; until then auth is a single master key
+- **Middleware / decorator** — PII scrubbing (Presidio), rate limiting (Redis),
+  and cost tracking will wrap the request path as cross-cutting concerns, not be
+  inlined into handlers. PII scrubbing is the next milestone, per
+  [ADR-0005](adr/0005-compliance-first-design.md). (Audit logging has landed —
+  see the write-behind buffer above.)
+- **Repository** — per-team API keys and cost records get a persistence layer
+  behind an interface; until then auth is a single master key
   ([ADR-0003](adr/0003-master-key-auth-first.md)).
 
 ## How to read this codebase

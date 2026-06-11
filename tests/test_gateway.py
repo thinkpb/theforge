@@ -5,42 +5,10 @@ LLM call is neither. Monkeypatching litellm.acompletion makes these tests fast,
 free, offline, and CI-safe — we test the plumbing, not the model.
 """
 
-import httpx
 import litellm
 import pytest
 
-
-class FakeResponse:
-    def __init__(self, model: str):
-        self._model = model
-
-    def model_dump(self):
-        return {
-            "id": "chatcmpl-fake",
-            "object": "chat.completion",
-            "model": self._model,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": "hello"},
-                    "finish_reason": "stop",
-                }
-            ],
-            "usage": {"prompt_tokens": 5, "completion_tokens": 7, "total_tokens": 12},
-        }
-
-
-@pytest.fixture
-def fake_completion(monkeypatch):
-    """Replace litellm.acompletion; returns the kwargs the router sent."""
-    calls = {}
-
-    async def _fake(**kwargs):
-        calls.update(kwargs)
-        return FakeResponse(kwargs["model"])
-
-    monkeypatch.setattr("forge.gateway.router.litellm.acompletion", _fake)
-    return calls
+from tests.conftest import make_litellm_exc
 
 
 def _chat_body(model: str, **extra):
@@ -90,14 +58,6 @@ async def test_params_forwarded_only_when_set(client, auth_headers, fake_complet
     assert "max_tokens" not in fake_completion
 
 
-def _make_exc(exc_type: type[Exception]) -> Exception:
-    kwargs = {"message": "boom", "llm_provider": "openai", "model": "gpt-4o"}
-    if exc_type is litellm.exceptions.PermissionDeniedError:
-        request = httpx.Request("POST", "http://upstream.test")
-        kwargs["response"] = httpx.Response(403, request=request)
-    return exc_type(**kwargs)
-
-
 @pytest.mark.parametrize(
     ("exc_name", "expected_status"),
     [
@@ -116,7 +76,7 @@ async def test_upstream_errors_mapped(
     exc_type = getattr(litellm.exceptions, exc_name)
 
     async def _boom(**kwargs):
-        raise _make_exc(exc_type)
+        raise make_litellm_exc(exc_type)
 
     monkeypatch.setattr("forge.gateway.router.litellm.acompletion", _boom)
     response = await client.post(

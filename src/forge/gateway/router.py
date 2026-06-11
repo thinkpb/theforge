@@ -1,15 +1,21 @@
 """Provider routing.
 
-Maps gateway model aliases to upstream providers via LiteLLM. Fallbacks,
-retries, cost tracking, and rate limiting attach here in later milestones.
+Maps gateway model aliases to upstream providers via LiteLLM, and emits an
+audit record for every request (ADR-0005/0006) — this layer is the choke point
+where alias, upstream model, tokens, and cost are all known, so every surface
+built on the gateway inherits auditing. Fallbacks, retries, and rate limiting
+attach here in later milestones.
 """
 
+import time
+import uuid
 from typing import Any
 
 import litellm
 import openai
 from fastapi import HTTPException, status
 
+from forge.audit import AuditBuffer, AuditBufferFull, AuditRecord
 from forge.config import Settings
 
 # Forge surfaces errors itself; don't let litellm spam stdout.
@@ -43,6 +49,18 @@ def _upstream_error(exc: Exception, code: int) -> HTTPException:
     )
 
 
+def _audit(buffer: AuditBuffer, record: AuditRecord) -> None:
+    try:
+        buffer.put(record)
+    except AuditBufferFull:
+        # Bounded-queue backstop (ADR-0006): a request that can't be audited
+        # doesn't happen. 503 signals operators, not a client mistake.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Audit backlog at capacity; request rejected.",
+        ) from None
+
+
 def resolve_model(alias: str, settings: Settings) -> str:
     try:
         return settings.model_map[alias]
@@ -58,20 +76,79 @@ async def complete(
     model: str,
     messages: list[dict[str, Any]],
     settings: Settings,
+    audit: AuditBuffer,
+    api_key_hash: str,
     **params: Any,
 ) -> dict[str, Any]:
-    upstream = resolve_model(model, settings)
+    request_id = uuid.uuid4()
+    try:
+        upstream = resolve_model(model, settings)
+    except HTTPException as exc:
+        _audit(
+            audit,
+            AuditRecord(
+                request_id=request_id,
+                api_key_hash=api_key_hash,
+                model_alias=model,
+                upstream_model=None,
+                outcome="rejected",
+                status_code=exc.status_code,
+                latency_ms=0,
+            ),
+        )
+        raise
+
     if upstream.startswith("ollama/"):
         params["api_base"] = settings.ollama_base_url
+
+    def _error_record(exc: Exception, code: int) -> AuditRecord:
+        return AuditRecord(
+            request_id=request_id,
+            api_key_hash=api_key_hash,
+            model_alias=model,
+            upstream_model=upstream,
+            outcome="upstream_error",
+            status_code=code,
+            error_type=type(exc).__name__,
+            latency_ms=int((time.perf_counter() - started) * 1000),
+        )
+
+    started = time.perf_counter()
     try:
         response = await litellm.acompletion(model=upstream, messages=messages, **params)
     except _MAPPED_ERRORS as exc:
-        raise _upstream_error(exc, _status_for(exc)) from exc
+        code = _status_for(exc)
+        _audit(audit, _error_record(exc, code))
+        raise _upstream_error(exc, code) from exc
     # litellm's exception classes don't share a single litellm base — some subclass
     # openai's hierarchy directly. openai.OpenAIError is the one common ancestor.
     except openai.OpenAIError as exc:
+        _audit(audit, _error_record(exc, status.HTTP_502_BAD_GATEWAY))
         raise _upstream_error(exc, status.HTTP_502_BAD_GATEWAY) from exc
+    latency_ms = int((time.perf_counter() - started) * 1000)
+
     result = response.model_dump()
+    usage = result.get("usage") or {}
+    try:
+        cost_usd = litellm.completion_cost(completion_response=response)
+    except Exception:
+        cost_usd = None  # unknown pricing (e.g. local models) is not an error
+    _audit(
+        audit,
+        AuditRecord(
+            request_id=request_id,
+            api_key_hash=api_key_hash,
+            model_alias=model,
+            upstream_model=upstream,
+            outcome="success",
+            status_code=status.HTTP_200_OK,
+            prompt_tokens=usage.get("prompt_tokens"),
+            completion_tokens=usage.get("completion_tokens"),
+            total_tokens=usage.get("total_tokens"),
+            cost_usd=cost_usd,
+            latency_ms=latency_ms,
+        ),
+    )
     # Report the alias, not the upstream model string — callers shouldn't see routing.
     result["model"] = model
     return result

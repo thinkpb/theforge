@@ -32,8 +32,9 @@ Kubernetes · JWT auth + API key management
 - [x] GitHub Actions CI — pytest + ruff on every commit
 - [x] LiteLLM proxy: `/v1/chat/completions` routing to OpenAI / Anthropic / Ollama
       — verified end-to-end against local Ollama (llama3.2:1b)
-- [ ] **Audit logging on every request** — who, which model, token counts, cost,
-      latency, outcome — append-only in Postgres
+- [x] **Audit logging on every request** — who, which model, token counts, cost,
+      latency, outcome — append-only in Postgres (write-behind buffer, ADR-0006;
+      verified live incl. trigger-rejected tampering)
 - [ ] **PII scrubbing in the request pipeline** (Presidio) — on by default,
       per-key opt-out is the exception that gets audit-logged
 - [ ] PII leakage test suite — synthetic-PII fixtures, runs on every pipeline change

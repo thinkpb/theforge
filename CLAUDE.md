@@ -11,10 +11,11 @@ Positioning and competitive landscape: docs/POSITIONING.md.
 
 ```bash
 uv sync                                  # install deps (Python pinned via .python-version)
-uv run pytest                            # run tests
-uv run ruff check src tests             # lint
+uv run pytest                            # run tests (needs Postgres up; uses forge_test DB)
+uv run ruff check src tests alembic     # lint
 uv run uvicorn forge.main:app --reload  # run the gateway on :8000
-docker compose up -d                     # Postgres + Redis
+docker compose up -d                     # Postgres + Redis (+ Ollama for Docker users)
+uv run alembic upgrade head              # apply DB migrations (URL from FORGE_DATABASE_URL)
 ```
 
 ## Layout
