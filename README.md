@@ -1,5 +1,7 @@
 # Forge
 
+[![CI](https://github.com/thinkpb/theforge/actions/workflows/ci.yml/badge.svg)](https://github.com/thinkpb/theforge/actions/workflows/ci.yml)
+
 **The open-source AI infrastructure layer for regulated industries.**
 
 > HIPAA-ready, SOC2-aligned, self-hostable AI platform with built-in audit trails,

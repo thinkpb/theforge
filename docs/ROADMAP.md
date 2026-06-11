@@ -29,7 +29,7 @@ Kubernetes · JWT auth + API key management
 
 ### Milestones
 - [x] Repo scaffold, FastAPI app, health endpoint, bearer auth
-- [ ] GitHub Actions CI — pytest + ruff on every commit
+- [x] GitHub Actions CI — pytest + ruff on every commit
 - [ ] LiteLLM proxy: `/v1/chat/completions` routing to OpenAI / Anthropic / Ollama
 - [ ] **Audit logging on every request** — who, which model, token counts, cost,
       latency, outcome — append-only in Postgres
