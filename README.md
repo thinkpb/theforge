@@ -75,22 +75,29 @@ four-layer testing strategy.
 
 ## Quickstart
 
+Zero API keys needed — the local Ollama model is the fastest way to try Forge:
+
 ```bash
-# Start infrastructure (Postgres, Redis)
+# Start infrastructure (Postgres, Redis, Ollama)
 docker compose up -d
+docker compose exec ollama ollama pull llama3.2:1b   # one-time, ~1.3 GB
 
-# Install dependencies
+# Install dependencies and run the gateway
 uv sync
-
-# Configure
-cp .env.example .env   # add your provider API keys
-
-# Run the gateway
 uv run uvicorn forge.main:app --reload
 
-# Smoke test
-curl http://localhost:8000/health
+# Chat through the gateway — fully local, no data leaves your machine
+curl http://localhost:8000/v1/chat/completions \
+  -H "Authorization: Bearer change-me" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "llama3.2", "messages": [{"role": "user", "content": "Say hello from Forge"}]}'
 ```
+
+To route to hosted providers, copy `.env.example` to `.env`, add your
+`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`, and set a real `FORGE_MASTER_KEY`.
+Already running Ollama natively (recommended on macOS — Docker can't use the
+GPU there)? Skip the compose Ollama service; the gateway talks to
+`localhost:11434` either way.
 
 ## Tech Stack
 

@@ -17,7 +17,7 @@ class Settings(BaseSettings):
         "gpt-4o-mini": "openai/gpt-4o-mini",
         "claude-fable-5": "anthropic/claude-fable-5",
         "claude-sonnet-4-6": "anthropic/claude-sonnet-4-6",
-        "llama3": "ollama/llama3",
+        "llama3.2": "ollama/llama3.2:1b",
     }
 
 
