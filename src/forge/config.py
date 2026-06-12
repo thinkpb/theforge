@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     # JSON list in env: FORGE_PII_ALLOW_LIST='["Metformin","Lisinopril"]'
     pii_allow_list: list[str] = []
 
+    # Token-aware rate limits per team key per minute (ADR-0009). The master
+    # (admin) key is exempt. Redis-down fails open.
+    rate_limit_enabled: bool = True
+    rate_limit_rpm: int = 60
+    rate_limit_tpm: int = 100_000
+
     # model alias -> litellm model string; the gateway only accepts aliases it knows
     model_map: dict[str, str] = {
         "gpt-4o": "openai/gpt-4o",

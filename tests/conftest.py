@@ -13,6 +13,13 @@ from forge.main import create_app
 
 TEST_KEY = "test-master-key"
 TEST_DB_URL = "postgresql+asyncpg://forge:forge@localhost:5432/forge_test"
+TEST_REDIS_URL = "redis://localhost:6379/9"  # dedicated test DB, away from dev
+
+
+def set_test_env(monkeypatch):
+    monkeypatch.setenv("FORGE_MASTER_KEY", TEST_KEY)
+    monkeypatch.setenv("FORGE_DATABASE_URL", TEST_DB_URL)
+    monkeypatch.setenv("FORGE_REDIS_URL", TEST_REDIS_URL)
 
 
 @pytest.fixture(scope="session")
@@ -46,8 +53,7 @@ async def db_engine(_test_database):
 
 @pytest.fixture
 async def app(monkeypatch, db_engine):
-    monkeypatch.setenv("FORGE_MASTER_KEY", TEST_KEY)
-    monkeypatch.setenv("FORGE_DATABASE_URL", TEST_DB_URL)
+    set_test_env(monkeypatch)
     get_settings.cache_clear()
     application = create_app()
     # httpx's ASGITransport doesn't run startup/shutdown; drive the lifespan

@@ -3,16 +3,18 @@
 Clients point any OpenAI SDK at the gateway and use Forge model aliases.
 """
 
+import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from forge.audit import AuditBuffer, get_audit_buffer
+from forge.audit import AuditBuffer, AuditRecord, get_audit_buffer
 from forge.auth import AuthContext, require_api_key
 from forge.config import Settings, get_settings
 from forge.gateway import router as gateway
 from forge.pii import PIIScrubber, get_pii_scrubber
+from forge.ratelimit import RateLimiter, RateLimitExceeded, get_rate_limiter
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -38,7 +40,31 @@ async def chat_completions(
     ctx: AuthContext = Depends(require_api_key),
     audit: AuditBuffer = Depends(get_audit_buffer),
     scrubber: PIIScrubber = Depends(get_pii_scrubber),
+    limiter: RateLimiter = Depends(get_rate_limiter),
 ) -> dict[str, Any]:
+    if not ctx.is_master:
+        try:
+            await limiter.check_and_count(ctx.key_hash)
+        except RateLimitExceeded as exc:
+            # rate-limited requests are still audited — "every request" means every
+            audit.put(
+                AuditRecord(
+                    request_id=uuid.uuid4(),
+                    api_key_hash=ctx.key_hash,
+                    model_alias=request.model,
+                    upstream_model=None,
+                    outcome="rate_limited",
+                    status_code=429,
+                    error_type=exc.reason,
+                    latency_ms=0,
+                )
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded ({exc.reason}); retry after {exc.retry_after}s",
+                headers={"Retry-After": str(exc.retry_after)},
+            ) from None
+
     params: dict[str, Any] = {}
     if request.temperature is not None:
         params["temperature"] = request.temperature
@@ -47,7 +73,7 @@ async def chat_completions(
     if ctx.pii_opt_out:
         # Per-key opt-out (ADR-0007/0008) — the audit row records NULL redactions.
         scrubber = PIIScrubber(enabled=False)
-    return await gateway.complete(
+    result = await gateway.complete(
         model=request.model,
         messages=[m.model_dump() for m in request.messages],
         settings=settings,
@@ -56,6 +82,10 @@ async def chat_completions(
         scrubber=scrubber,
         **params,
     )
+    if not ctx.is_master:
+        usage = result.get("usage") or {}
+        await limiter.debit_tokens(ctx.key_hash, usage.get("total_tokens"))
+    return result
 
 
 @router.get("/v1/models")

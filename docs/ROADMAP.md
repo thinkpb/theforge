@@ -42,7 +42,7 @@ Kubernetes · JWT auth + API key management
 - [x] API key management — per-team keys, hash-only storage, revoke-not-delete,
       per-key PII opt-out (ADR-0008); verified live
 - [x] Cost tracking per key/team — /v1/costs aggregates the audit trail (no separate cost store)
-- [ ] Redis-backed rate limiting (token-aware, not just request-count)
+- [x] Redis-backed rate limiting — token-aware via debit-after accounting (ADR-0009); rate-limited requests are audited
 - [ ] Provider fallbacks + retries
 - [ ] Streaming support (SSE) — audit + scrubbing must work on streams too
 - [ ] Docker Compose deploy → first K8s manifests

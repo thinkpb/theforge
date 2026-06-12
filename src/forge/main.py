@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from redis import asyncio as aioredis
 
 from forge import __version__
 from forge.api import audit, chat, costs, health, keys
@@ -8,6 +9,7 @@ from forge.audit import AuditBuffer
 from forge.config import get_settings
 from forge.db import create_engine_and_factory
 from forge.pii import PIIScrubber
+from forge.ratelimit import RateLimiter
 
 
 @asynccontextmanager
@@ -27,8 +29,16 @@ async def _lifespan(app: FastAPI):
         enabled=settings.pii_scrubbing_enabled,
         allow_list=settings.pii_allow_list,
     )
+    redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+    app.state.rate_limiter = RateLimiter(
+        redis,
+        rpm=settings.rate_limit_rpm,
+        tpm=settings.rate_limit_tpm,
+        enabled=settings.rate_limit_enabled,
+    )
     yield
     await buffer.stop()
+    await redis.aclose()
     await engine.dispose()
 
 
