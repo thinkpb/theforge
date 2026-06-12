@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     audit_queue_size: int = 10_000
     audit_flush_batch: int = 100
 
+    # PII scrubbing at the outbound boundary (ADR-0007). On by default; turning
+    # it off is visible in the audit trail (pii_redactions = NULL).
+    pii_scrubbing_enabled: bool = True
+    # Domain terms the NER model false-positives on (drug names, org jargon).
+    # JSON list in env: FORGE_PII_ALLOW_LIST='["Metformin","Lisinopril"]'
+    pii_allow_list: list[str] = []
+
     # model alias -> litellm model string; the gateway only accepts aliases it knows
     model_map: dict[str, str] = {
         "gpt-4o": "openai/gpt-4o",

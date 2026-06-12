@@ -15,7 +15,15 @@ dependencies = [
     "sqlalchemy>=2.0",
     "asyncpg>=0.30",
     "alembic>=1.14",
+    "presidio-analyzer>=2.2",
+    "presidio-anonymizer>=2.2",
+    # Small English NER model for Presidio's spaCy engine — ADR-0007 trades some
+    # recall for a footprint that works in CI and self-hosted deploys.
+    "en-core-web-sm",
 ]
+
+[tool.uv.sources]
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
 
 [dependency-groups]
 dev = [

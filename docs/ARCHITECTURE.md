@@ -80,6 +80,18 @@ audit events. The hook lives in [`gateway/router.py`](../src/forge/gateway/route
 `complete()` — the one place where alias, upstream model, tokens, and cost are all
 known — so every future surface inherits auditing.
 
+### Outbound PII boundary
+[`pii.py`](../src/forge/pii.py) scrubs every message in `gateway/router.py`
+`complete()` before it leaves for an upstream provider
+([ADR-0007](adr/0007-pii-scrubbing-outbound.md)): Presidio detects entities,
+type markers (`<PERSON>`, `<US_SSN>`) replace them, and the redaction count
+lands in the audit record. **Why outbound:** the threat model is PII leaving the
+operator's infrastructure for providers whose retention policies they don't
+control. On by default; the opt-out and the operator allow-list (for NER
+false-positives on domain vocabulary) are visible configuration, not silent
+behavior. The leakage suite (`tests/test_pii.py`) asserts on exactly what the
+provider would have received.
+
 ### In-process integration tests
 [`tests/conftest.py`](../tests/conftest.py) drives the real ASGI app through httpx's
 `ASGITransport` — full middleware/auth/validation stack, no live server, no network.
@@ -92,11 +104,9 @@ These are roadmap milestones, not oversights:
 
 - **Strategy** — routing and fallback policies (retry on provider error, failover
   chains) will be pluggable strategies on the gateway layer.
-- **Middleware / decorator** — PII scrubbing (Presidio), rate limiting (Redis),
-  and cost tracking will wrap the request path as cross-cutting concerns, not be
-  inlined into handlers. PII scrubbing is the next milestone, per
-  [ADR-0005](adr/0005-compliance-first-design.md). (Audit logging has landed —
-  see the write-behind buffer above.)
+- **Middleware / decorator** — rate limiting (Redis) and cost tracking will wrap
+  the request path as cross-cutting concerns, not be inlined into handlers.
+  (Audit logging and PII scrubbing have landed — see above.)
 - **Repository** — per-team API keys and cost records get a persistence layer
   behind an interface; until then auth is a single master key
   ([ADR-0003](adr/0003-master-key-auth-first.md)).

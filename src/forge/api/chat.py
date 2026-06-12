@@ -12,6 +12,7 @@ from forge.audit import AuditBuffer, get_audit_buffer, key_fingerprint
 from forge.auth import require_api_key
 from forge.config import Settings, get_settings
 from forge.gateway import router as gateway
+from forge.pii import PIIScrubber, get_pii_scrubber
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -36,6 +37,7 @@ async def chat_completions(
     settings: Settings = Depends(get_settings),
     api_key: str = Depends(require_api_key),
     audit: AuditBuffer = Depends(get_audit_buffer),
+    scrubber: PIIScrubber = Depends(get_pii_scrubber),
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
     if request.temperature is not None:
@@ -48,6 +50,7 @@ async def chat_completions(
         settings=settings,
         audit=audit,
         api_key_hash=key_fingerprint(api_key),
+        scrubber=scrubber,
         **params,
     )
 

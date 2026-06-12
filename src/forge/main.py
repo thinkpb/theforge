@@ -7,6 +7,7 @@ from forge.api import audit, chat, health
 from forge.audit import AuditBuffer
 from forge.config import get_settings
 from forge.db import create_engine_and_factory
+from forge.pii import PIIScrubber
 
 
 @asynccontextmanager
@@ -22,6 +23,10 @@ async def _lifespan(app: FastAPI):
     app.state.db_engine = engine
     app.state.db_session_factory = session_factory
     app.state.audit_buffer = buffer
+    app.state.pii_scrubber = PIIScrubber(
+        enabled=settings.pii_scrubbing_enabled,
+        allow_list=settings.pii_allow_list,
+    )
     yield
     await buffer.stop()
     await engine.dispose()

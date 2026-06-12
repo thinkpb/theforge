@@ -51,6 +51,8 @@ class AuditLog(Base):
     total_tokens: Mapped[int | None]
     cost_usd: Mapped[float | None] = mapped_column(Numeric(12, 6))
     latency_ms: Mapped[int]
+    # None = scrubbing disabled; 0 = ran, nothing found (ADR-0007)
+    pii_redactions: Mapped[int | None]
 
 
 # Shared by the Alembic migration and the test fixtures so the enforced SQL is
@@ -90,6 +92,7 @@ class AuditRecord:
     completion_tokens: int | None = None
     total_tokens: int | None = None
     cost_usd: float | None = None
+    pii_redactions: int | None = None
 
 
 class AuditBufferFull(Exception):

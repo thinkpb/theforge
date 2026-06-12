@@ -66,8 +66,8 @@ only the *generated answer* needs evals.
 
 ## Layer 3 — Red teaming (adversarial)
 
-**Status: PII leakage suite lands with the Phase 1 Presidio milestone; injection
-and jailbreak suites land with Phase 2/3.**
+**Status: PII leakage suite active (`tests/test_pii.py`); injection and jailbreak
+suites land with Phase 2/3.**
 
 - **PII leakage tests** — the highest-stakes suite for Forge. Fixture documents
   containing realistic PII (names, SSNs, DOBs) go through the pipeline; responses
@@ -113,7 +113,7 @@ milestone's foundation.
 |---|---|---|---|
 | Unit/integration | pytest | every commit (CI) | ✅ now |
 | API contracts | pytest snapshot/shape tests | every commit (CI) | Phase 1 |
-| PII leakage | custom pytest suite | every pipeline change | Phase 1 (with Presidio) |
+| PII leakage | custom pytest suite | every pipeline change | ✅ now |
 | Load testing | Locust or k6 | weekly + pre-release | Phase 1 (with rate limiting) |
 | RAG evals | RAGAS + gold dataset | every model/chunking change | Phase 2 |
 | LLM test suite | DeepEval | every PR to main | Phase 2 |

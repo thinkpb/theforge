@@ -35,9 +35,10 @@ Kubernetes · JWT auth + API key management
 - [x] **Audit logging on every request** — who, which model, token counts, cost,
       latency, outcome — append-only in Postgres (write-behind buffer, ADR-0006;
       verified live incl. trigger-rejected tampering)
-- [ ] **PII scrubbing in the request pipeline** (Presidio) — on by default,
-      per-key opt-out is the exception that gets audit-logged
-- [ ] PII leakage test suite — synthetic-PII fixtures, runs on every pipeline change
+- [x] **PII scrubbing in the request pipeline** (Presidio) — on by default at the
+      outbound boundary, opt-out visible in the audit trail (ADR-0007)
+- [x] PII leakage test suite — synthetic-PII fixtures asserting on the outbound
+      boundary; verified live (zero fixture-PII occurrences in provider logs)
 - [ ] API key management (create, revoke, scope)
 - [ ] Cost tracking per key/team in Postgres
 - [ ] Redis-backed rate limiting (token-aware, not just request-count)

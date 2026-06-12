@@ -39,6 +39,7 @@ async def list_audit(
                 "total_tokens": row.total_tokens,
                 "cost_usd": float(row.cost_usd) if row.cost_usd is not None else None,
                 "latency_ms": row.latency_ms,
+                "pii_redactions": row.pii_redactions,
             }
             for row in rows
         ],

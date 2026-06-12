@@ -17,6 +17,7 @@ from fastapi import HTTPException, status
 
 from forge.audit import AuditBuffer, AuditBufferFull, AuditRecord
 from forge.config import Settings
+from forge.pii import PIIScrubber
 
 # Forge surfaces errors itself; don't let litellm spam stdout.
 litellm.suppress_debug_info = True
@@ -78,6 +79,7 @@ async def complete(
     settings: Settings,
     audit: AuditBuffer,
     api_key_hash: str,
+    scrubber: PIIScrubber,
     **params: Any,
 ) -> dict[str, Any]:
     request_id = uuid.uuid4()
@@ -101,6 +103,9 @@ async def complete(
     if upstream.startswith("ollama/"):
         params["api_base"] = settings.ollama_base_url
 
+    # PII boundary (ADR-0007): nothing leaves for an upstream provider unscrubbed.
+    messages, pii_redactions = await scrubber.scrub_messages(messages)
+
     def _error_record(exc: Exception, code: int) -> AuditRecord:
         return AuditRecord(
             request_id=request_id,
@@ -111,6 +116,7 @@ async def complete(
             status_code=code,
             error_type=type(exc).__name__,
             latency_ms=int((time.perf_counter() - started) * 1000),
+            pii_redactions=pii_redactions,
         )
 
     started = time.perf_counter()
@@ -147,6 +153,7 @@ async def complete(
             total_tokens=usage.get("total_tokens"),
             cost_usd=cost_usd,
             latency_ms=latency_ms,
+            pii_redactions=pii_redactions,
         ),
     )
     # Report the alias, not the upstream model string — callers shouldn't see routing.
