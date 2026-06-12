@@ -8,7 +8,7 @@ milestone, and produces 2–3 blog posts.
 logging and PII scrubbing from day one. Phase 5 packages and proves compliance; it
 doesn't introduce it.
 
-## Phase 1 — The Compliance-Core Gateway (Weeks 1–6) 🚧
+## Phase 1 — The Compliance-Core Gateway (Weeks 1–6) ✅
 
 A multi-provider LLM gateway where every request is authenticated, audit-logged,
 and PII-scrubbed **by default** — plus routing, cost tracking, and rate limiting.
@@ -45,9 +45,10 @@ Kubernetes · JWT auth + API key management
 - [x] Redis-backed rate limiting — token-aware via debit-after accounting (ADR-0009); rate-limited requests are audited
 - [x] Provider fallbacks — per-alias chains on transient errors; audit records the serving provider (ADR-0010)
 - [x] Streaming support (SSE) — setup-before-stream, audit-at-stream-end with real usage (ADR-0011); verified live
-- [ ] Docker Compose deploy → first K8s manifests
+- [x] Docker Compose deploy → first K8s manifests — non-root image + kustomize
+      manifests, verified on a live minikube cluster (migrations, e2e, audit)
 
-## Phase 2 — The RAG Engine, PII-Safe (Weeks 7–12)
+## Phase 2 — The RAG Engine, PII-Safe (Weeks 7–12) 🚧
 
 Document ingestion and retrieval pipeline. PDFs, Word docs, web pages in;
 semantically searchable chunks out — with PII detected and handled **at ingestion

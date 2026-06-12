@@ -24,3 +24,4 @@ docs/local/
 .DS_Store
 .idea/
 .vscode/
+k8s/secret.yaml

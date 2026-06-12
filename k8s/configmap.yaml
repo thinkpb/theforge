@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: forge-gateway-config
+  namespace: forge
+data:
+  # non-secret configuration; secrets (master key, DB URL, provider keys)
+  # belong in the forge-gateway-secrets Secret — see secret.example.yaml
+  FORGE_PII_SCRUBBING_ENABLED: "true"
+  FORGE_RATE_LIMIT_RPM: "60"
+  FORGE_RATE_LIMIT_TPM: "100000"
+  FORGE_REDIS_URL: "redis://forge-redis:6379/0"
+  FORGE_OLLAMA_BASE_URL: "http://forge-ollama:11434"

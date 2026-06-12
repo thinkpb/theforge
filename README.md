@@ -66,7 +66,13 @@ are designed for regulated industries. Forge is one self-hostable platform where
 
 ## Status
 
-🚧 **Phase 1 — The Compliance-Core Gateway** (in progress)
+✅ **Phase 1 — The Compliance-Core Gateway** — complete. Every request
+authenticated, audit-logged (append-only), and PII-scrubbed by default; per-team
+keys, cost attribution, token-aware rate limiting, fallback chains, SSE
+streaming, and a non-root container with Kubernetes manifests verified on a live
+cluster.
+
+🚧 **Phase 2 — The RAG Engine, PII-Safe** (next)
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the full five-phase build plan,
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design patterns and decision
