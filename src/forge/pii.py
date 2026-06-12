@@ -33,12 +33,26 @@ def _engines() -> tuple[AnalyzerEngine, AnonymizerEngine]:
 
 
 class PIIScrubber:
-    def __init__(self, enabled: bool, allow_list: list[str] | None = None):
+    def __init__(
+        self,
+        enabled: bool,
+        allow_list: list[str] | None = None,
+        entities: list[str] | None = None,
+    ):
         self.enabled = enabled
         # Small NER models false-positive on domain vocabulary (e.g. drug names
         # tagged as PERSON). Operators allow-list known-safe terms rather than
         # losing clinical/legal content to over-scrubbing.
         self.allow_list = allow_list or []
+        # Curated entity types (Settings.pii_entities): scrub identifiers, not
+        # every date-like string — DATE_TIME destroys facts (ADR-0012).
+        self.entities = entities
+
+    async def scrub_text(self, text: str) -> tuple[str, int | None]:
+        """Scrub a single text (RAG ingestion/search path). None = disabled."""
+        if not self.enabled:
+            return text, None
+        return await asyncio.to_thread(self._scrub_text, text)
 
     async def scrub_messages(
         self, messages: list[dict[str, Any]]
@@ -72,7 +86,9 @@ class PIIScrubber:
 
     def _scrub_text(self, text: str) -> tuple[str, int]:
         analyzer, anonymizer = _engines()
-        results = analyzer.analyze(text=text, language="en", allow_list=self.allow_list)
+        results = analyzer.analyze(
+            text=text, language="en", allow_list=self.allow_list, entities=self.entities
+        )
         if not results:
             return text, 0
         anonymized = anonymizer.anonymize(text=text, analyzer_results=results)

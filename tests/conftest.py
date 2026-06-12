@@ -1,9 +1,11 @@
 import asyncio
+import uuid
 
 import asyncpg
 import httpx
 import litellm
 import pytest
+from qdrant_client import AsyncQdrantClient
 from sqlalchemy import text
 
 from forge.audit import APPEND_ONLY_DDL
@@ -54,6 +56,9 @@ async def db_engine(_test_database):
 @pytest.fixture
 async def app(monkeypatch, db_engine):
     set_test_env(monkeypatch)
+    # unique qdrant collection prefix per test → isolation without flushes
+    prefix = f"t{uuid.uuid4().hex[:8]}"
+    monkeypatch.setenv("FORGE_QDRANT_COLLECTION_PREFIX", prefix)
     get_settings.cache_clear()
     application = create_app()
     # httpx's ASGITransport doesn't run startup/shutdown; drive the lifespan
@@ -61,6 +66,14 @@ async def app(monkeypatch, db_engine):
     async with application.router.lifespan_context(application):
         yield application
     get_settings.cache_clear()
+    try:
+        qdrant = AsyncQdrantClient(url="http://localhost:6333")
+        for collection in (await qdrant.get_collections()).collections:
+            if collection.name.startswith(f"{prefix}_"):
+                await qdrant.delete_collection(collection.name)
+        await qdrant.close()
+    except Exception:
+        pass  # qdrant not running and test didn't need it
 
 
 @pytest.fixture

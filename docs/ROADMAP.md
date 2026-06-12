@@ -67,6 +67,18 @@ hierarchical) · retrieval patterns (similarity, hybrid, reranking) · Celery + 
 - "Hybrid search: combining BM25 and vector search for better RAG"
 - "PII-safe document ingestion — the pipeline no one talks about building"
 
+### Milestones
+- [x] Qdrant + local embeddings foundation — PII-safe ingestion (scrub-before-embed),
+      team-scoped collections, `/v1/documents` + `/v1/search`, all audited
+      (ADR-0012); verified live with nomic-embed-text
+- [ ] Document parsers: PDF (PyMuPDF), DOCX (python-docx), HTML (BeautifulSoup)
+- [ ] Chunking strategies: sentence-aware + hierarchical, with a comparison harness
+- [ ] RAG injection into `/v1/chat/completions` — retrieval context added automatically
+- [ ] Hybrid search: BM25 + vector with reranking
+- [ ] Async ingestion jobs for large documents (queue + workers)
+- [ ] Gold eval dataset (synthetic healthcare/legal Q&A) + RAGAS regression pipeline
+- [ ] Prompt-injection fixture corpus for document pipelines (TESTING.md Layer 3)
+
 ## Phase 3 — The Agent Runtime, Fully Audited (Weeks 13–20)
 
 A runtime where teams define, deploy, and run agents with tool use — self-hostable
