@@ -50,14 +50,23 @@ async def test_planted_fact_is_retrieved(client, auth_headers, fake_embeddings):
         )
         assert response.status_code == 201
 
+    # dense mode pins the dense-pipeline contract: orthogonal fakes → exact match
     search = await client.post(
+        "/v1/search",
+        headers=auth_headers,
+        json={"query": "how long is the return period?", "limit": 2, "mode": "dense"},
+    )
+    results = search.json()["data"]
+    assert "47 days" in results[0]["text"]
+    assert results[0]["score"] > 0.99
+
+    # hybrid (default) must rank the same doc first — scores are RRF-scale
+    hybrid = await client.post(
         "/v1/search",
         headers=auth_headers,
         json={"query": "how long is the return period?", "limit": 2},
     )
-    results = search.json()["data"]
-    assert "47 days" in results[0]["text"]
-    assert results[0]["score"] > 0.99  # orthogonal fakes: match is exact
+    assert "47 days" in hybrid.json()["data"][0]["text"]
 
 
 async def test_vector_store_never_holds_raw_pii(client, auth_headers, fake_embeddings):

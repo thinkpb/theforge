@@ -1,13 +1,13 @@
 {
-  "ts": 1781250000,
+  "ts": 1781290251,
   "top_k": 4,
   "retrieval": {
-    "items": 22,
-    "hit_at_1": 1.0,
+    "items": 27,
+    "hit_at_1": 0.9259,
     "hit_at_4": 1.0,
-    "mrr": 1.0,
-    "topic_in_top1": 1.0,
-    "topic_recall": 1.0,
+    "mrr": 0.9568,
+    "topic_in_top1": 0.9259,
+    "topic_recall": 0.9877,
     "pii_leaks": 0
   }
 }

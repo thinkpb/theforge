@@ -17,7 +17,7 @@ from forge.pii import PIIScrubber, get_pii_scrubber
 from forge.rag.chunking import STRATEGIES
 from forge.rag.ingest import get_vector_store, ingest_document, search_documents
 from forge.rag.parsing import DocumentParseError, UnsupportedDocumentType, parse_document
-from forge.rag.store import VectorStore
+from forge.rag.store import SEARCH_MODES, VectorStore
 
 router = APIRouter()
 
@@ -33,6 +33,7 @@ class IngestRequest(BaseModel):
 class SearchRequest(BaseModel):
     query: str = Field(min_length=1)
     limit: int = Field(default=5, ge=1, le=50)
+    mode: str | None = None  # "hybrid" (default from settings) or "dense"
 
 
 def _effective(ctx: AuthContext, scrubber: PIIScrubber) -> tuple[str, PIIScrubber]:
@@ -135,6 +136,11 @@ async def search(
     scrubber: PIIScrubber = Depends(get_pii_scrubber),
     store: VectorStore = Depends(get_vector_store),
 ) -> dict[str, Any]:
+    if body.mode is not None and body.mode not in SEARCH_MODES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unknown search mode {body.mode!r}. Available: {sorted(SEARCH_MODES)}",
+        )
     team, scrubber = _effective(ctx, scrubber)
     results = await search_documents(
         query=body.query,
@@ -145,5 +151,6 @@ async def search(
         store=store,
         audit=audit,
         api_key_hash=ctx.key_hash,
+        mode=body.mode,
     )
     return {"object": "list", "data": results}

@@ -64,6 +64,8 @@ class Settings(BaseSettings):
     rag_chunk_overlap: int = 50
     # default picked by measurement — evals/compare_chunking.py (ADR-0015)
     rag_chunk_strategy: str = "sentence"
+    # hybrid = dense + BM25 with RRF fusion; "dense" opts down (ADR-0016)
+    rag_search_mode: str = "hybrid"
     rag_max_upload_bytes: int = 10 * 1024 * 1024  # synchronous ingestion cap
 
     # alias -> ordered fallback aliases tried on transient upstream failures

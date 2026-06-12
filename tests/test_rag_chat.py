@@ -27,10 +27,12 @@ async def test_rag_injects_context_and_reports_sources(
 ):
     await _ingest(client, auth_headers, FACT, DECOY)
 
+    # min_score is in the retrieval mode's score space — hybrid (default) uses
+    # RRF rank-fusion scores: rank-1 in one leg = 0.5, rank-2 = 0.333 (ADR-0016)
     response = await client.post(
         "/v1/chat/completions",
         headers=auth_headers,
-        json=_rag_chat("how long is the return period?", top_k=2, min_score=0.5),
+        json=_rag_chat("how long is the return period?", top_k=2, min_score=0.4),
     )
     assert response.status_code == 200
 
@@ -44,7 +46,7 @@ async def test_rag_injects_context_and_reports_sources(
     body = response.json()
     (source,) = body["forge_rag"]["sources"]
     assert source["title"] == "policy"
-    assert source["score"] > 0.99
+    assert source["score"] >= 0.4
     assert body["model"] == "gpt-4o"  # contract intact
 
 

@@ -98,10 +98,13 @@ class ForgeEvalClient:
             )
             response.raise_for_status()
 
-    def search(self, question: str, top_k: int) -> list[dict[str, Any]]:
-        response = self._client.post(
-            "/v1/search", headers=self._headers, json={"query": question, "limit": top_k}
-        )
+    def search(
+        self, question: str, top_k: int, mode: str | None = None
+    ) -> list[dict[str, Any]]:
+        payload: dict[str, Any] = {"query": question, "limit": top_k}
+        if mode:
+            payload["mode"] = mode
+        response = self._client.post("/v1/search", headers=self._headers, json=payload)
         response.raise_for_status()
         return response.json()["data"]
 
@@ -124,11 +127,14 @@ class ForgeEvalClient:
 
 
 def evaluate_retrieval(
-    client: ForgeEvalClient, items: list[dict[str, Any]], top_k: int
+    client: ForgeEvalClient,
+    items: list[dict[str, Any]],
+    top_k: int,
+    mode: str | None = None,
 ) -> tuple[dict[str, Any], list[RetrievalResult]]:
     results: list[RetrievalResult] = []
     for item in items:
-        hits = client.search(item["question"], top_k)
+        hits = client.search(item["question"], top_k, mode=mode)
         rank = next(
             (i + 1 for i, hit in enumerate(hits) if hit.get("title") == item["doc_title"]),
             None,

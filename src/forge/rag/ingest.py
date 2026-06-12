@@ -12,6 +12,7 @@ recall — and keeps the outbound boundary uniform if the embedding model is
 ever remote.
 """
 
+import asyncio
 import time
 import uuid
 from typing import Any
@@ -23,6 +24,7 @@ from forge.config import Settings
 from forge.pii import PIIScrubber
 from forge.rag.chunking import chunk_text
 from forge.rag.embeddings import embed_texts
+from forge.rag.sparse import sparse_embed
 from forge.rag.store import VectorStore, collection_for_team
 
 
@@ -82,6 +84,8 @@ async def ingest_document(
             total_redactions = (total_redactions or 0) + count
 
     vectors = await embed_texts(scrubbed_chunks, settings)
+    # sparse vectors of SCRUBBED text only — a BM25 index is readable (ADR-0016)
+    sparse_vectors = await asyncio.to_thread(sparse_embed, scrubbed_chunks)
     collection = collection_for_team(settings.qdrant_collection_prefix, team)
     await store.ensure_collection(collection, settings.embedding_dim)
     await store.upsert_chunks(
@@ -89,6 +93,7 @@ async def ingest_document(
         doc_id,
         scrubbed_chunks,
         vectors,
+        sparse_vectors,
         metadata={"title": title} if title else {},
     )
     audit.put(
@@ -119,12 +124,16 @@ async def search_documents(
     store: VectorStore,
     audit: AuditBuffer,
     api_key_hash: str,
+    mode: str | None = None,
 ) -> list[dict[str, Any]]:
     started = time.perf_counter()
     scrubbed_query, redactions = await scrubber.scrub_text(query)
     (vector,) = await embed_texts([scrubbed_query], settings)
+    (sparse_vector,) = await asyncio.to_thread(sparse_embed, [scrubbed_query])
     collection = collection_for_team(settings.qdrant_collection_prefix, team)
-    results = await store.search(collection, vector, limit)
+    results = await store.search(
+        collection, vector, sparse_vector, limit, mode=mode or settings.rag_search_mode
+    )
     audit.put(
         _record(
             event="search",

@@ -1,6 +1,10 @@
 """Qdrant vector store. Collections are team-scoped (ADR-0012): a team key
 can only ever read and write its own collection — isolation by construction,
 not by query filter.
+
+Hybrid layout (ADR-0016): every point carries a named dense vector and a named
+BM25 sparse vector; hybrid queries fuse both with Reciprocal Rank Fusion
+server-side. Dense-only remains available per request.
 """
 
 import re
@@ -8,6 +12,8 @@ import uuid
 from typing import Any
 
 from qdrant_client import AsyncQdrantClient, models
+
+SEARCH_MODES = {"hybrid", "dense"}
 
 
 def collection_for_team(prefix: str, team: str) -> str:
@@ -26,7 +32,13 @@ class VectorStore:
         if not await self._client.collection_exists(name):
             await self._client.create_collection(
                 collection_name=name,
-                vectors_config=models.VectorParams(size=dim, distance=models.Distance.COSINE),
+                vectors_config={
+                    "dense": models.VectorParams(size=dim, distance=models.Distance.COSINE)
+                },
+                sparse_vectors_config={
+                    # IDF lives server-side; the client sends term frequencies
+                    "bm25": models.SparseVectorParams(modifier=models.Modifier.IDF)
+                },
             )
 
     async def upsert_chunks(
@@ -35,12 +47,13 @@ class VectorStore:
         doc_id: uuid.UUID,
         chunks: list[str],
         vectors: list[list[float]],
+        sparse_vectors: list[models.SparseVector],
         metadata: dict[str, Any],
     ) -> None:
         points = [
             models.PointStruct(
                 id=str(uuid.uuid4()),
-                vector=vector,
+                vector={"dense": dense, "bm25": sparse},
                 payload={
                     "text": text,
                     "doc_id": str(doc_id),
@@ -48,18 +61,41 @@ class VectorStore:
                     **metadata,
                 },
             )
-            for index, (text, vector) in enumerate(zip(chunks, vectors, strict=True))
+            for index, (text, dense, sparse) in enumerate(
+                zip(chunks, vectors, sparse_vectors, strict=True)
+            )
         ]
         await self._client.upsert(collection_name=collection, points=points)
 
     async def search(
-        self, collection: str, vector: list[float], limit: int
+        self,
+        collection: str,
+        vector: list[float],
+        sparse_vector: models.SparseVector,
+        limit: int,
+        mode: str = "hybrid",
     ) -> list[dict[str, Any]]:
+        if mode not in SEARCH_MODES:
+            raise ValueError(f"Unknown search mode {mode!r}. Available: {sorted(SEARCH_MODES)}")
         if not await self._client.collection_exists(collection):
             return []  # team hasn't ingested anything yet — not an error
-        result = await self._client.query_points(
-            collection_name=collection, query=vector, limit=limit, with_payload=True
-        )
-        return [
-            {"score": point.score, **(point.payload or {})} for point in result.points
-        ]
+        if mode == "dense":
+            result = await self._client.query_points(
+                collection_name=collection,
+                query=vector,
+                using="dense",
+                limit=limit,
+                with_payload=True,
+            )
+        else:
+            result = await self._client.query_points(
+                collection_name=collection,
+                prefetch=[
+                    models.Prefetch(query=vector, using="dense", limit=limit * 3),
+                    models.Prefetch(query=sparse_vector, using="bm25", limit=limit * 3),
+                ],
+                query=models.FusionQuery(fusion=models.Fusion.RRF),
+                limit=limit,
+                with_payload=True,
+            )
+        return [{"score": point.score, **(point.payload or {})} for point in result.points]

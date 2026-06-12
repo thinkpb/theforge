@@ -79,7 +79,9 @@ hierarchical) · retrieval patterns (similarity, hybrid, reranking) · Celery + 
       structure (ADR-0015)
 - [x] RAG injection into `/v1/chat/completions` — additive `rag` request field,
       `forge_rag` sources in the response, retrieval audited (ADR-0013)
-- [ ] Hybrid search: BM25 + vector with reranking
+- [x] Hybrid search — dense + BM25 sparse with server-side RRF fusion; measured
+      +3.7pp hit@1 on exact-token queries (ADR-0016); cross-encoder reranking
+      deferred with its target number visible in the baseline
 - [ ] Async ingestion jobs for large documents (queue + workers)
 - [x] Gold eval dataset (synthetic healthcare/legal Q&A) + RAGAS regression
       pipeline — black-box harness, retrieval baseline committed (ADR-0014);
