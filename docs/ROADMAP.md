@@ -75,7 +75,8 @@ hierarchical) · retrieval patterns (similarity, hybrid, reranking) · Celery + 
       + `/v1/documents/upload` — same scrub-before-embed pipeline; verified live
       with a real PDF
 - [ ] Chunking strategies: sentence-aware + hierarchical, with a comparison harness
-- [ ] RAG injection into `/v1/chat/completions` — retrieval context added automatically
+- [x] RAG injection into `/v1/chat/completions` — additive `rag` request field,
+      `forge_rag` sources in the response, retrieval audited (ADR-0013)
 - [ ] Hybrid search: BM25 + vector with reranking
 - [ ] Async ingestion jobs for large documents (queue + workers)
 - [ ] Gold eval dataset (synthetic healthcare/legal Q&A) + RAGAS regression pipeline
