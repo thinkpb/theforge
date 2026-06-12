@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from forge import __version__
-from forge.api import audit, chat, health, keys
+from forge.api import audit, chat, costs, health, keys
 from forge.audit import AuditBuffer
 from forge.config import get_settings
 from forge.db import create_engine_and_factory
@@ -43,6 +43,7 @@ def create_app() -> FastAPI:
     app.include_router(chat.router)
     app.include_router(audit.router)
     app.include_router(keys.router)
+    app.include_router(costs.router)
     return app
 
 

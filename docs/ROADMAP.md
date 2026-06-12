@@ -41,7 +41,7 @@ Kubernetes · JWT auth + API key management
       boundary; verified live (zero fixture-PII occurrences in provider logs)
 - [x] API key management — per-team keys, hash-only storage, revoke-not-delete,
       per-key PII opt-out (ADR-0008); verified live
-- [ ] Cost tracking per key/team in Postgres
+- [x] Cost tracking per key/team — /v1/costs aggregates the audit trail (no separate cost store)
 - [ ] Redis-backed rate limiting (token-aware, not just request-count)
 - [ ] Provider fallbacks + retries
 - [ ] Streaming support (SSE) — audit + scrubbing must work on streams too
