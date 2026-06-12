@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     rate_limit_rpm: int = 60
     rate_limit_tpm: int = 100_000
 
+    # alias -> ordered fallback aliases tried on transient upstream failures
+    # (ADR-0010). Env: FORGE_FALLBACK_MAP='{"gpt-4o": ["claude-fable-5"]}'
+    fallback_map: dict[str, list[str]] = {}
+
     # model alias -> litellm model string; the gateway only accepts aliases it knows
     model_map: dict[str, str] = {
         "gpt-4o": "openai/gpt-4o",

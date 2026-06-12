@@ -43,7 +43,7 @@ Kubernetes · JWT auth + API key management
       per-key PII opt-out (ADR-0008); verified live
 - [x] Cost tracking per key/team — /v1/costs aggregates the audit trail (no separate cost store)
 - [x] Redis-backed rate limiting — token-aware via debit-after accounting (ADR-0009); rate-limited requests are audited
-- [ ] Provider fallbacks + retries
+- [x] Provider fallbacks — per-alias chains on transient errors; audit records the serving provider (ADR-0010)
 - [ ] Streaming support (SSE) — audit + scrubbing must work on streams too
 - [ ] Docker Compose deploy → first K8s manifests
 

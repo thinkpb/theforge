@@ -7,6 +7,7 @@ built on the gateway inherits auditing. Fallbacks, retries, and rate limiting
 attach here in later milestones.
 """
 
+import logging
 import time
 import uuid
 from typing import Any
@@ -18,6 +19,8 @@ from fastapi import HTTPException, status
 from forge.audit import AuditBuffer, AuditBufferFull, AuditRecord
 from forge.config import Settings
 from forge.pii import PIIScrubber
+
+logger = logging.getLogger(__name__)
 
 # Forge surfaces errors itself; don't let litellm spam stdout.
 litellm.suppress_debug_info = True
@@ -34,6 +37,17 @@ _ERROR_STATUS: dict[type[Exception], int] = {
     litellm.exceptions.APIConnectionError: status.HTTP_504_GATEWAY_TIMEOUT,
 }
 _MAPPED_ERRORS = tuple(_ERROR_STATUS)
+
+# Worth trying another provider for. BadRequest/Auth failures are excluded on
+# purpose: the request or the operator config is wrong, and a different
+# provider can't fix either.
+TRANSIENT_ERRORS = (
+    litellm.exceptions.Timeout,
+    litellm.exceptions.APIConnectionError,
+    litellm.exceptions.RateLimitError,
+    litellm.exceptions.InternalServerError,
+    litellm.exceptions.ServiceUnavailableError,
+)
 
 
 def _status_for(exc: Exception) -> int:
@@ -100,18 +114,15 @@ async def complete(
         )
         raise
 
-    if upstream.startswith("ollama/"):
-        params["api_base"] = settings.ollama_base_url
-
     # PII boundary (ADR-0007): nothing leaves for an upstream provider unscrubbed.
     messages, pii_redactions = await scrubber.scrub_messages(messages)
 
-    def _error_record(exc: Exception, code: int) -> AuditRecord:
+    def _error_record(exc: Exception, code: int, attempted: str) -> AuditRecord:
         return AuditRecord(
             request_id=request_id,
             api_key_hash=api_key_hash,
             model_alias=model,
-            upstream_model=upstream,
+            upstream_model=attempted,
             outcome="upstream_error",
             status_code=code,
             error_type=type(exc).__name__,
@@ -119,18 +130,52 @@ async def complete(
             pii_redactions=pii_redactions,
         )
 
+    # Fallback chain (ADR-0010): primary first, then configured fallbacks, each
+    # tried once. Latency in the audit record is total across attempts.
+    chain = [model, *settings.fallback_map.get(model, [])]
     started = time.perf_counter()
-    try:
-        response = await litellm.acompletion(model=upstream, messages=messages, **params)
-    except _MAPPED_ERRORS as exc:
-        code = _status_for(exc)
-        _audit(audit, _error_record(exc, code))
-        raise _upstream_error(exc, code) from exc
-    # litellm's exception classes don't share a single litellm base — some subclass
-    # openai's hierarchy directly. openai.OpenAIError is the one common ancestor.
-    except openai.OpenAIError as exc:
-        _audit(audit, _error_record(exc, status.HTTP_502_BAD_GATEWAY))
-        raise _upstream_error(exc, status.HTTP_502_BAD_GATEWAY) from exc
+    response = None
+    last_exc: Exception | None = None
+    serving = upstream
+    for index, alias in enumerate(chain):
+        try:
+            serving = upstream if alias == model else resolve_model(alias, settings)
+        except HTTPException:
+            logger.warning("fallback alias %r for %r is not in model_map; skipping", alias, model)
+            continue
+        attempt_params = dict(params)
+        if serving.startswith("ollama/"):
+            attempt_params["api_base"] = settings.ollama_base_url
+        try:
+            response = await litellm.acompletion(
+                model=serving, messages=messages, **attempt_params
+            )
+            break
+        # litellm's exception classes don't share a single litellm base — some
+        # subclass openai's hierarchy directly. OpenAIError is the one common
+        # ancestor.
+        except openai.OpenAIError as exc:
+            last_exc = exc
+            if isinstance(exc, TRANSIENT_ERRORS) and index < len(chain) - 1:
+                logger.warning(
+                    "upstream %s failed transiently (%s); trying fallback",
+                    serving,
+                    type(exc).__name__,
+                )
+                continue
+            code = _status_for(exc)
+            _audit(audit, _error_record(exc, code, serving))
+            raise _upstream_error(exc, code) from exc
+    if response is None:
+        # chain exhausted on transient errors (or fully misconfigured)
+        if last_exc is None:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"No resolvable upstream for '{model}' — check fallback_map",
+            )
+        code = _status_for(last_exc)
+        _audit(audit, _error_record(last_exc, code, serving))
+        raise _upstream_error(last_exc, code) from last_exc
     latency_ms = int((time.perf_counter() - started) * 1000)
 
     result = response.model_dump()
@@ -145,7 +190,7 @@ async def complete(
             request_id=request_id,
             api_key_hash=api_key_hash,
             model_alias=model,
-            upstream_model=upstream,
+            upstream_model=serving,
             outcome="success",
             status_code=status.HTTP_200_OK,
             prompt_tokens=usage.get("prompt_tokens"),
