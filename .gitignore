@@ -17,6 +17,9 @@ build/
 .coverage
 htmlcov/
 
+# Local-only notes (blog drafts, planning) — never published
+docs/local/
+
 # OS / editor
 .DS_Store
 .idea/
