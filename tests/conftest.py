@@ -121,6 +121,28 @@ def fake_completion(monkeypatch):
     return calls
 
 
+EMBED_DIM = 768
+
+
+def _onehot(seed: int) -> list[float]:
+    vector = [0.0] * EMBED_DIM
+    vector[seed] = 1.0
+    return vector
+
+
+@pytest.fixture
+def fake_embeddings(monkeypatch):
+    """Orthogonal vectors: fact-related texts share a direction, others don't."""
+
+    async def _fake(texts, settings):
+        return [
+            _onehot(1) if ("47 days" in t or "return period" in t) else _onehot(2)
+            for t in texts
+        ]
+
+    monkeypatch.setattr("forge.rag.ingest.embed_texts", _fake)
+
+
 def make_litellm_exc(exc_type: type[Exception]) -> Exception:
     kwargs = {"message": "boom", "llm_provider": "openai", "model": "gpt-4o"}
     if exc_type is litellm.exceptions.PermissionDeniedError:

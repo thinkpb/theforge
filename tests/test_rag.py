@@ -11,30 +11,11 @@ from qdrant_client import AsyncQdrantClient
 from forge.config import get_settings
 from forge.rag.chunking import chunk_text
 
-DIM = 768
 FACT = "The refund window is 47 days for all enterprise contracts."
 DECOY = "Quarterly parking assignments rotate among building tenants."
 SYNTHETIC_NOTE = (
     "Patient John Smith (SSN 536-90-4399) is prescribed Metformin 1000mg twice daily."
 )
-
-
-def _vec(seed: int) -> list[float]:
-    v = [0.0] * DIM
-    v[seed] = 1.0
-    return v
-
-
-@pytest.fixture
-def fake_embeddings(monkeypatch):
-    """Orthogonal vectors: fact-related texts share a direction, others don't."""
-
-    async def _fake(texts, settings):
-        return [
-            _vec(1) if ("47 days" in t or "return period" in t) else _vec(2) for t in texts
-        ]
-
-    monkeypatch.setattr("forge.rag.ingest.embed_texts", _fake)
 
 
 # --- chunking: pure logic, no infrastructure ---------------------------------

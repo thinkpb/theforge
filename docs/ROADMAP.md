@@ -71,7 +71,9 @@ hierarchical) · retrieval patterns (similarity, hybrid, reranking) · Celery + 
 - [x] Qdrant + local embeddings foundation — PII-safe ingestion (scrub-before-embed),
       team-scoped collections, `/v1/documents` + `/v1/search`, all audited
       (ADR-0012); verified live with nomic-embed-text
-- [ ] Document parsers: PDF (PyMuPDF), DOCX (python-docx), HTML (BeautifulSoup)
+- [x] Document parsers: PDF (PyMuPDF), DOCX (python-docx), HTML (BeautifulSoup)
+      + `/v1/documents/upload` — same scrub-before-embed pipeline; verified live
+      with a real PDF
 - [ ] Chunking strategies: sentence-aware + hierarchical, with a comparison harness
 - [ ] RAG injection into `/v1/chat/completions` — retrieval context added automatically
 - [ ] Hybrid search: BM25 + vector with reranking

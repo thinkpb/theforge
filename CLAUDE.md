@@ -27,6 +27,8 @@ uv run alembic upgrade head              # apply DB migrations (URL from FORGE_D
 - `src/forge/keys.py` — ApiKey model and key generation (hash-only storage)
 - `src/forge/api/` — HTTP routes (OpenAI-compatible: `/v1/chat/completions`, `/v1/models`)
 - `src/forge/gateway/` — provider routing via LiteLLM
+- `src/forge/rag/` — RAG engine: chunking, embeddings, Qdrant store, parsers,
+  scrub-before-embed ingestion (ADR-0012)
 - `tests/` — pytest, async mode auto, httpx ASGITransport (no live server needed)
 
 ## Conventions
