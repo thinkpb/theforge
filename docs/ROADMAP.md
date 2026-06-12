@@ -79,7 +79,9 @@ hierarchical) · retrieval patterns (similarity, hybrid, reranking) · Celery + 
       `forge_rag` sources in the response, retrieval audited (ADR-0013)
 - [ ] Hybrid search: BM25 + vector with reranking
 - [ ] Async ingestion jobs for large documents (queue + workers)
-- [ ] Gold eval dataset (synthetic healthcare/legal Q&A) + RAGAS regression pipeline
+- [x] Gold eval dataset (synthetic healthcare/legal Q&A) + RAGAS regression
+      pipeline — black-box harness, retrieval baseline committed (ADR-0014);
+      caught and fixed an sm-model name leak on its first run
 - [ ] Prompt-injection fixture corpus for document pipelines (TESTING.md Layer 3)
 
 ## Phase 3 — The Agent Runtime, Fully Audited (Weeks 13–20)

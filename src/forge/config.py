@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # PII scrubbing at the outbound boundary (ADR-0007). On by default; turning
     # it off is visible in the audit trail (pii_redactions = NULL).
     pii_scrubbing_enabled: bool = True
+    # lg by default: the eval harness measured a name-recall leak with sm
+    # (ADR-0014). en_core_web_sm is the documented lightweight opt-down.
+    pii_spacy_model: str = "en_core_web_lg"
     # Domain terms the NER model false-positives on (drug names, org jargon).
     # JSON list in env: FORGE_PII_ALLOW_LIST='["Metformin","Lisinopril"]'
     pii_allow_list: list[str] = []

@@ -25,3 +25,6 @@ docs/local/
 .idea/
 .vscode/
 k8s/secret.yaml
+
+# Eval run output (the committed baseline lives at evals/baseline.json)
+evals/reports/

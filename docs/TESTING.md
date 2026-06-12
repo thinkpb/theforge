@@ -44,8 +44,10 @@ table stakes — red teaming and PII leakage testing especially
 
 ## Layer 2 — AI evals (probabilistic outputs)
 
-**Status: lands with Phase 2 (RAG).** No LLM-output quality claims until there's an
-eval pipeline to back them.
+**Status: active** — gold dataset + harness in [`evals/`](../evals), ADR-0014.
+Retrieval metrics (hit@k, MRR, PII leaks) are deterministic; RAGAS
+faithfulness/relevancy run with a local judge on demand. `evals/baseline.json`
+is the regression line.
 
 - **Gold-standard dataset** — domain-specific Q&A pairs for the healthcare and
   legal verticals (`expected_topics`, `should_not_contain`, faithfulness flags).
@@ -115,7 +117,7 @@ milestone's foundation.
 | API contracts | pytest snapshot/shape tests | every commit (CI) | Phase 1 |
 | PII leakage | custom pytest suite | every pipeline change | ✅ now |
 | Load testing | Locust or k6 | weekly + pre-release | Phase 1 (with rate limiting) |
-| RAG evals | RAGAS + gold dataset | every model/chunking change | Phase 2 |
+| RAG evals | RAGAS + gold dataset (`evals/`) | every model/chunking change | ✅ now |
 | LLM test suite | DeepEval | every PR to main | Phase 2 |
 | Prompt injection | custom fixture corpus | every pipeline change | Phase 2–3 |
 | Security/red team | Garak + custom | monthly + before release | Phase 3 |

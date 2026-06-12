@@ -21,11 +21,11 @@ from presidio_anonymizer import AnonymizerEngine
 
 
 @lru_cache
-def _engines() -> tuple[AnalyzerEngine, AnonymizerEngine]:
+def _engines(spacy_model: str) -> tuple[AnalyzerEngine, AnonymizerEngine]:
     provider = NlpEngineProvider(
         nlp_configuration={
             "nlp_engine_name": "spacy",
-            "models": [{"lang_code": "en", "model_name": "en_core_web_sm"}],
+            "models": [{"lang_code": "en", "model_name": spacy_model}],
         }
     )
     analyzer = AnalyzerEngine(nlp_engine=provider.create_engine(), supported_languages=["en"])
@@ -38,8 +38,10 @@ class PIIScrubber:
         enabled: bool,
         allow_list: list[str] | None = None,
         entities: list[str] | None = None,
+        spacy_model: str = "en_core_web_lg",
     ):
         self.enabled = enabled
+        self.spacy_model = spacy_model
         # Small NER models false-positive on domain vocabulary (e.g. drug names
         # tagged as PERSON). Operators allow-list known-safe terms rather than
         # losing clinical/legal content to over-scrubbing.
@@ -85,7 +87,7 @@ class PIIScrubber:
         return scrubbed, total
 
     def _scrub_text(self, text: str) -> tuple[str, int]:
-        analyzer, anonymizer = _engines()
+        analyzer, anonymizer = _engines(self.spacy_model)
         results = analyzer.analyze(
             text=text, language="en", allow_list=self.allow_list, entities=self.entities
         )

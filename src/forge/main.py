@@ -30,6 +30,7 @@ async def _lifespan(app: FastAPI):
         enabled=settings.pii_scrubbing_enabled,
         allow_list=settings.pii_allow_list,
         entities=settings.pii_entities,
+        spacy_model=settings.pii_spacy_model,
     )
     redis = aioredis.from_url(settings.redis_url, decode_responses=True)
     app.state.rate_limiter = RateLimiter(

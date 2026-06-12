@@ -17,6 +17,8 @@ uv run ruff check src tests alembic     # lint
 uv run uvicorn forge.main:app --reload  # run the gateway on :8000
 docker compose up -d                     # Postgres + Redis (+ Ollama for Docker users)
 uv run alembic upgrade head              # apply DB migrations (URL from FORGE_DATABASE_URL)
+uv run --group evals python evals/run_rag_eval.py --baseline evals/baseline.json
+                                         # RAG eval vs baseline (needs gateway+Ollama up)
 ```
 
 ## Layout

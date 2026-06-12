@@ -1,0 +1,11 @@
+{
+  "ts": 1781244085,
+  "top_k": 4,
+  "retrieval": {
+    "items": 16,
+    "hit_at_1": 1.0,
+    "hit_at_4": 1.0,
+    "mrr": 1.0,
+    "pii_leaks": 0
+  }
+}
