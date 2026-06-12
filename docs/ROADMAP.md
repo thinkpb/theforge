@@ -39,7 +39,8 @@ Kubernetes · JWT auth + API key management
       outbound boundary, opt-out visible in the audit trail (ADR-0007)
 - [x] PII leakage test suite — synthetic-PII fixtures asserting on the outbound
       boundary; verified live (zero fixture-PII occurrences in provider logs)
-- [ ] API key management (create, revoke, scope)
+- [x] API key management — per-team keys, hash-only storage, revoke-not-delete,
+      per-key PII opt-out (ADR-0008); verified live
 - [ ] Cost tracking per key/team in Postgres
 - [ ] Redis-backed rate limiting (token-aware, not just request-count)
 - [ ] Provider fallbacks + retries

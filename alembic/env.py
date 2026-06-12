@@ -17,8 +17,10 @@ if config.config_file_name is not None:
 
 # The database URL comes from Forge settings (FORGE_DATABASE_URL / .env), so
 # alembic.ini never holds credentials and migrations hit the same DB as the app.
-from forge.audit import Base  # noqa: E402
+import forge.audit  # noqa: E402, F401 — register models on Base.metadata
+import forge.keys  # noqa: E402, F401
 from forge.config import get_settings  # noqa: E402
+from forge.db import Base  # noqa: E402
 
 config.set_main_option("sqlalchemy.url", get_settings().database_url)
 target_metadata = Base.metadata

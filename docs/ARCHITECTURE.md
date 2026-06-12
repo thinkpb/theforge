@@ -107,9 +107,10 @@ These are roadmap milestones, not oversights:
 - **Middleware / decorator** — rate limiting (Redis) and cost tracking will wrap
   the request path as cross-cutting concerns, not be inlined into handlers.
   (Audit logging and PII scrubbing have landed — see above.)
-- **Repository** — per-team API keys and cost records get a persistence layer
-  behind an interface; until then auth is a single master key
-  ([ADR-0003](adr/0003-master-key-auth-first.md)).
+- **Repository** — cost records get a persistence layer behind an interface in
+  the cost-tracking milestone. (Per-team API keys have landed —
+  [ADR-0008](adr/0008-api-key-management.md): hash-only storage,
+  revoke-not-delete, master key as admin credential.)
 
 ## How to read this codebase
 

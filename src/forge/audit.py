@@ -18,16 +18,14 @@ from datetime import datetime
 from fastapi import Request
 from sqlalchemy import BigInteger, DateTime, Index, Numeric, Uuid, func
 from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
+
+from forge.db import Base
 
 logger = logging.getLogger(__name__)
 
 _FLUSH_RETRY_SECONDS = 1.0
 _DRAIN_TIMEOUT_SECONDS = 5.0
-
-
-class Base(DeclarativeBase):
-    pass
 
 
 class AuditLog(Base):

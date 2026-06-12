@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 
 from forge.audit import AuditLog
-from forge.auth import require_api_key
+from forge.auth import require_master_key
 
-router = APIRouter(dependencies=[Depends(require_api_key)])
+# Audit reads are admin-only: teams must not see each other's usage.
+router = APIRouter(dependencies=[Depends(require_master_key)])
 
 
 @router.get("/v1/audit")

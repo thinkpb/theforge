@@ -1,6 +1,7 @@
 # ADR-0003: Single master key now, per-team API keys later
 
-**Status:** Accepted (2026-06) — superseded when the API-key-management milestone lands
+**Status:** Superseded by [ADR-0008](0008-api-key-management.md) (2026-06) — the
+master key remains as the admin/bootstrap credential
 
 ## Context
 

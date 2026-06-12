@@ -6,9 +6,9 @@ import litellm
 import pytest
 from sqlalchemy import text
 
-from forge.audit import APPEND_ONLY_DDL, Base
+from forge.audit import APPEND_ONLY_DDL
 from forge.config import get_settings
-from forge.db import create_engine_and_factory
+from forge.db import Base, create_engine_and_factory
 from forge.main import create_app
 
 TEST_KEY = "test-master-key"

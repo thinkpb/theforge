@@ -22,7 +22,8 @@ uv run alembic upgrade head              # apply DB migrations (URL from FORGE_D
 
 - `src/forge/main.py` — FastAPI app factory
 - `src/forge/config.py` — pydantic-settings, env prefix `FORGE_`, model alias map
-- `src/forge/auth.py` — bearer auth (master key for now; per-team keys planned)
+- `src/forge/auth.py` — bearer auth: Postgres-backed team keys + master admin key (ADR-0008)
+- `src/forge/keys.py` — ApiKey model and key generation (hash-only storage)
 - `src/forge/api/` — HTTP routes (OpenAI-compatible: `/v1/chat/completions`, `/v1/models`)
 - `src/forge/gateway/` — provider routing via LiteLLM
 - `tests/` — pytest, async mode auto, httpx ASGITransport (no live server needed)
