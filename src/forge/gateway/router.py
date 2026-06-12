@@ -7,9 +7,11 @@ built on the gateway inherits auditing. Fallbacks, retries, and rate limiting
 attach here in later milestones.
 """
 
+import json
 import logging
 import time
 import uuid
+from collections.abc import AsyncIterator
 from typing import Any
 
 import litellm
@@ -204,3 +206,91 @@ async def complete(
     # Report the alias, not the upstream model string — callers shouldn't see routing.
     result["model"] = model
     return result
+
+
+async def complete_stream(
+    *,
+    model: str,
+    messages: list[dict[str, Any]],
+    settings: Settings,
+    audit: AuditBuffer,
+    api_key_hash: str,
+    scrubber: PIIScrubber,
+    **params: Any,
+) -> AsyncIterator[str]:
+    """Set up a streaming completion and return the SSE body generator.
+
+    Setup (alias resolution, PII scrub, provider call) happens HERE, before the
+    HTTP response starts, so failures still get real status codes. The audit
+    record is written when the stream finishes — success or mid-stream error —
+    with total latency and whatever usage the provider reported (ADR-0011).
+    Fallback chains don't apply to streams (ADR-0010).
+    """
+    request_id = uuid.uuid4()
+    try:
+        upstream = resolve_model(model, settings)
+    except HTTPException as exc:
+        _audit(
+            audit,
+            AuditRecord(
+                request_id=request_id,
+                api_key_hash=api_key_hash,
+                model_alias=model,
+                upstream_model=None,
+                outcome="rejected",
+                status_code=exc.status_code,
+                latency_ms=0,
+            ),
+        )
+        raise
+
+    messages, pii_redactions = await scrubber.scrub_messages(messages)
+    if upstream.startswith("ollama/"):
+        params["api_base"] = settings.ollama_base_url
+
+    started = time.perf_counter()
+
+    def _record(outcome: str, code: int, usage: dict | None, error: Exception | None):
+        usage = usage or {}
+        return AuditRecord(
+            request_id=request_id,
+            api_key_hash=api_key_hash,
+            model_alias=model,
+            upstream_model=upstream,
+            outcome=outcome,
+            status_code=code,
+            error_type=type(error).__name__ if error else None,
+            prompt_tokens=usage.get("prompt_tokens"),
+            completion_tokens=usage.get("completion_tokens"),
+            total_tokens=usage.get("total_tokens"),
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            pii_redactions=pii_redactions,
+        )
+
+    try:
+        stream = await litellm.acompletion(
+            model=upstream, messages=messages, stream=True, **params
+        )
+    except openai.OpenAIError as exc:
+        code = _status_for(exc)
+        _audit(audit, _record("upstream_error", code, None, exc))
+        raise _upstream_error(exc, code) from exc
+
+    async def _body() -> AsyncIterator[str]:
+        usage: dict | None = None
+        try:
+            async for chunk in stream:
+                data = chunk.model_dump()
+                data["model"] = model  # alias, never the upstream string (ADR-0001)
+                if data.get("usage"):
+                    usage = data["usage"]
+                yield f"data: {json.dumps(data)}\n\n"
+            yield "data: [DONE]\n\n"
+            _audit(audit, _record("success", status.HTTP_200_OK, usage, None))
+        except openai.OpenAIError as exc:
+            # response already started — emit an SSE error event, audit the truth
+            _audit(audit, _record("upstream_error", _status_for(exc), usage, exc))
+            payload = {"error": {"message": f"Upstream provider error: {type(exc).__name__}"}}
+            yield f"data: {json.dumps(payload)}\n\n"
+
+    return _body()

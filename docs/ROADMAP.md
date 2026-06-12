@@ -44,7 +44,7 @@ Kubernetes · JWT auth + API key management
 - [x] Cost tracking per key/team — /v1/costs aggregates the audit trail (no separate cost store)
 - [x] Redis-backed rate limiting — token-aware via debit-after accounting (ADR-0009); rate-limited requests are audited
 - [x] Provider fallbacks — per-alias chains on transient errors; audit records the serving provider (ADR-0010)
-- [ ] Streaming support (SSE) — audit + scrubbing must work on streams too
+- [x] Streaming support (SSE) — setup-before-stream, audit-at-stream-end with real usage (ADR-0011); verified live
 - [ ] Docker Compose deploy → first K8s manifests
 
 ## Phase 2 — The RAG Engine, PII-Safe (Weeks 7–12)

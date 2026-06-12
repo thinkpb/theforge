@@ -7,6 +7,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from forge.audit import AuditBuffer, AuditRecord, get_audit_buffer
@@ -29,7 +30,6 @@ class ChatCompletionRequest(BaseModel):
     messages: list[ChatMessage]
     temperature: float | None = None
     max_tokens: int | None = Field(default=None, ge=1)
-    # streaming lands in the SSE milestone
     stream: bool = False
 
 
@@ -73,7 +73,7 @@ async def chat_completions(
     if ctx.pii_opt_out:
         # Per-key opt-out (ADR-0007/0008) — the audit row records NULL redactions.
         scrubber = PIIScrubber(enabled=False)
-    result = await gateway.complete(
+    gateway_args: dict[str, Any] = dict(
         model=request.model,
         messages=[m.model_dump() for m in request.messages],
         settings=settings,
@@ -82,6 +82,13 @@ async def chat_completions(
         scrubber=scrubber,
         **params,
     )
+    if request.stream:
+        # setup errors raise before the response starts; the audit record is
+        # written when the stream ends (ADR-0011). Streams debit only the
+        # request counter (ADR-0009).
+        body = await gateway.complete_stream(**gateway_args)
+        return StreamingResponse(body, media_type="text/event-stream")
+    result = await gateway.complete(**gateway_args)
     if not ctx.is_master:
         usage = result.get("usage") or {}
         await limiter.debit_tokens(ctx.key_hash, usage.get("total_tokens"))
