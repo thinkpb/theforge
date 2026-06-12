@@ -62,10 +62,16 @@ async def ingest_document(
     store: VectorStore,
     audit: AuditBuffer,
     api_key_hash: str,
+    chunking: str | None = None,
 ) -> dict[str, Any]:
     started = time.perf_counter()
     doc_id = uuid.uuid4()
-    chunks = chunk_text(text, settings.rag_chunk_words, settings.rag_chunk_overlap)
+    chunks = chunk_text(
+        text,
+        settings.rag_chunk_words,
+        settings.rag_chunk_overlap,
+        strategy=chunking or settings.rag_chunk_strategy,
+    )
 
     total_redactions: int | None = None
     scrubbed_chunks: list[str] = []

@@ -63,6 +63,8 @@ def mrr(ranks: list[int | None]) -> float:
 class RetrievalResult:
     item_id: str
     rank: int | None  # 1-based rank of the gold document, None if absent
+    topic_in_top1: bool = False  # an expected topic appears in the top chunk
+    topic_recall: float = 0.0  # fraction of expected topics found in top-k text
     leaked: list[str] = field(default_factory=list)
 
 
@@ -82,12 +84,17 @@ class ForgeEvalClient:
         self.team = team
         self._headers = {"Authorization": f"Bearer {created.json()['key']}"}
 
-    def ingest(self, items: list[dict[str, Any]]) -> None:
+    def ingest(self, items: list[dict[str, Any]], chunking: str | None = None) -> None:
+        seen: set[str] = set()  # long-form items share documents — ingest once
         for item in items:
+            if item["doc_title"] in seen:
+                continue
+            seen.add(item["doc_title"])
+            payload = {"text": item["doc_text"], "title": item["doc_title"]}
+            if chunking:
+                payload["chunking"] = chunking
             response = self._client.post(
-                "/v1/documents",
-                headers=self._headers,
-                json={"text": item["doc_text"], "title": item["doc_title"]},
+                "/v1/documents", headers=self._headers, json=payload
             )
             response.raise_for_status()
 
@@ -126,16 +133,28 @@ def evaluate_retrieval(
             (i + 1 for i, hit in enumerate(hits) if hit.get("title") == item["doc_title"]),
             None,
         )
-        retrieved_text = " ".join(hit["text"] for hit in hits)
-        leaked = [s for s in item["should_not_contain"] if s in retrieved_text]
-        results.append(RetrievalResult(item["id"], rank, leaked))
+        top1_text = hits[0]["text"].lower() if hits else ""
+        topk_text = " ".join(hit["text"] for hit in hits).lower()
+        topics = [t.lower() for t in item["expected_topics"]]
+        # topic metrics see what title-rank can't: whether the *chunk* that came
+        # back actually contains the answer — the chunking-sensitive signal
+        topic_in_top1 = any(t in top1_text for t in topics)
+        topic_recall = (
+            sum(1 for t in topics if t in topk_text) / len(topics) if topics else 1.0
+        )
+        leaked = [s for s in item["should_not_contain"] if s in topk_text or s in top1_text]
+        results.append(
+            RetrievalResult(item["id"], rank, topic_in_top1, round(topic_recall, 4), leaked)
+        )
 
     ranks = [r.rank for r in results]
     summary = {
         "items": len(results),
-        "hit_at_1": sum(1 for r in ranks if r == 1) / len(ranks),
-        f"hit_at_{top_k}": sum(1 for r in ranks if r is not None) / len(ranks),
+        "hit_at_1": round(sum(1 for r in ranks if r == 1) / len(ranks), 4),
+        f"hit_at_{top_k}": round(sum(1 for r in ranks if r is not None) / len(ranks), 4),
         "mrr": round(mrr(ranks), 4),
+        "topic_in_top1": round(sum(1 for r in results if r.topic_in_top1) / len(results), 4),
+        "topic_recall": round(sum(r.topic_recall for r in results) / len(results), 4),
         "pii_leaks": sum(len(r.leaked) for r in results),
     }
     return summary, results

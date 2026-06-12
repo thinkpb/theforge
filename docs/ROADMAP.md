@@ -74,7 +74,9 @@ hierarchical) · retrieval patterns (similarity, hybrid, reranking) · Celery + 
 - [x] Document parsers: PDF (PyMuPDF), DOCX (python-docx), HTML (BeautifulSoup)
       + `/v1/documents/upload` — same scrub-before-embed pipeline; verified live
       with a real PDF
-- [ ] Chunking strategies: sentence-aware + hierarchical, with a comparison harness
+- [x] Chunking strategies — fixed / sentence / paragraph, per-request selection,
+      comparison harness; measured tie at corpus scale, sentence default by
+      structure (ADR-0015)
 - [x] RAG injection into `/v1/chat/completions` — additive `rag` request field,
       `forge_rag` sources in the response, retrieval audited (ADR-0013)
 - [ ] Hybrid search: BM25 + vector with reranking

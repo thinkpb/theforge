@@ -14,6 +14,7 @@ from forge.audit import AuditBuffer, get_audit_buffer
 from forge.auth import AuthContext, require_api_key
 from forge.config import Settings, get_settings
 from forge.pii import PIIScrubber, get_pii_scrubber
+from forge.rag.chunking import STRATEGIES
 from forge.rag.ingest import get_vector_store, ingest_document, search_documents
 from forge.rag.parsing import DocumentParseError, UnsupportedDocumentType, parse_document
 from forge.rag.store import VectorStore
@@ -26,6 +27,7 @@ ADMIN_TEAM = "admin"
 class IngestRequest(BaseModel):
     text: str = Field(min_length=1)
     title: str | None = Field(default=None, max_length=256)
+    chunking: str | None = None  # default comes from settings (ADR-0015)
 
 
 class SearchRequest(BaseModel):
@@ -40,6 +42,14 @@ def _effective(ctx: AuthContext, scrubber: PIIScrubber) -> tuple[str, PIIScrubbe
     return team, scrubber
 
 
+def _validate_chunking(chunking: str | None) -> None:
+    if chunking is not None and chunking not in STRATEGIES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unknown chunking strategy {chunking!r}. Available: {sorted(STRATEGIES)}",
+        )
+
+
 @router.post("/v1/documents", status_code=201)
 async def ingest(
     body: IngestRequest,
@@ -49,6 +59,7 @@ async def ingest(
     scrubber: PIIScrubber = Depends(get_pii_scrubber),
     store: VectorStore = Depends(get_vector_store),
 ) -> dict[str, Any]:
+    _validate_chunking(body.chunking)
     team, scrubber = _effective(ctx, scrubber)
     return await ingest_document(
         text=body.text,
@@ -59,6 +70,7 @@ async def ingest(
         store=store,
         audit=audit,
         api_key_hash=ctx.key_hash,
+        chunking=body.chunking,
     )
 
 
@@ -66,12 +78,14 @@ async def ingest(
 async def upload(
     file: UploadFile = File(...),
     title: str | None = Form(default=None),
+    chunking: str | None = Form(default=None),
     settings: Settings = Depends(get_settings),
     ctx: AuthContext = Depends(require_api_key),
     audit: AuditBuffer = Depends(get_audit_buffer),
     scrubber: PIIScrubber = Depends(get_pii_scrubber),
     store: VectorStore = Depends(get_vector_store),
 ) -> dict[str, Any]:
+    _validate_chunking(chunking)
     data = await file.read()
     if len(data) > settings.rag_max_upload_bytes:
         raise HTTPException(
@@ -108,6 +122,7 @@ async def upload(
         store=store,
         audit=audit,
         api_key_hash=ctx.key_hash,
+        chunking=chunking,
     )
 
 
