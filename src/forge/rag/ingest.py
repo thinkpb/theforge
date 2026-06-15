@@ -40,6 +40,8 @@ def _record(
     outcome: str,
     started: float,
     pii_redactions: int | None,
+    status_code: int = 200,
+    error_type: str | None = None,
 ) -> AuditRecord:
     return AuditRecord(
         request_id=uuid.uuid4(),
@@ -47,7 +49,8 @@ def _record(
         model_alias=settings.embedding_model,
         upstream_model=settings.embedding_model,
         outcome=outcome,
-        status_code=200,
+        status_code=status_code,
+        error_type=error_type,
         latency_ms=int((time.perf_counter() - started) * 1000),
         pii_redactions=pii_redactions,
         event=event,
@@ -65,37 +68,56 @@ async def ingest_document(
     audit: AuditBuffer,
     api_key_hash: str,
     chunking: str | None = None,
+    doc_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     started = time.perf_counter()
-    doc_id = uuid.uuid4()
-    chunks = chunk_text(
-        text,
-        settings.rag_chunk_words,
-        settings.rag_chunk_overlap,
-        strategy=chunking or settings.rag_chunk_strategy,
-    )
+    # async callers pass a stable doc_id (= job id) so an arq retry overwrites
+    # the same points instead of duplicating them (ADR-0017)
+    doc_id = doc_id or uuid.uuid4()
+    try:
+        chunks = chunk_text(
+            text,
+            settings.rag_chunk_words,
+            settings.rag_chunk_overlap,
+            strategy=chunking or settings.rag_chunk_strategy,
+        )
 
-    total_redactions: int | None = None
-    scrubbed_chunks: list[str] = []
-    for chunk in chunks:
-        scrubbed, count = await scrubber.scrub_text(chunk)
-        scrubbed_chunks.append(scrubbed)
-        if count is not None:
-            total_redactions = (total_redactions or 0) + count
+        total_redactions: int | None = None
+        scrubbed_chunks: list[str] = []
+        for chunk in chunks:
+            scrubbed, count = await scrubber.scrub_text(chunk)
+            scrubbed_chunks.append(scrubbed)
+            if count is not None:
+                total_redactions = (total_redactions or 0) + count
 
-    vectors = await embed_texts(scrubbed_chunks, settings)
-    # sparse vectors of SCRUBBED text only — a BM25 index is readable (ADR-0016)
-    sparse_vectors = await asyncio.to_thread(sparse_embed, scrubbed_chunks)
-    collection = collection_for_team(settings.qdrant_collection_prefix, team)
-    await store.ensure_collection(collection, settings.embedding_dim)
-    await store.upsert_chunks(
-        collection,
-        doc_id,
-        scrubbed_chunks,
-        vectors,
-        sparse_vectors,
-        metadata={"title": title} if title else {},
-    )
+        vectors = await embed_texts(scrubbed_chunks, settings)
+        # sparse vectors of SCRUBBED text only — a BM25 index is readable (ADR-0016)
+        sparse_vectors = await asyncio.to_thread(sparse_embed, scrubbed_chunks)
+        collection = collection_for_team(settings.qdrant_collection_prefix, team)
+        await store.ensure_collection(collection, settings.embedding_dim)
+        await store.upsert_chunks(
+            collection,
+            doc_id,
+            scrubbed_chunks,
+            vectors,
+            sparse_vectors,
+            metadata={"title": title} if title else {},
+        )
+    except Exception as exc:
+        # every ingestion is audited — failures too (parity with the chat path)
+        audit.put(
+            _record(
+                event="ingestion",
+                api_key_hash=api_key_hash,
+                settings=settings,
+                outcome="error",
+                started=started,
+                pii_redactions=None,
+                status_code=500,
+                error_type=type(exc).__name__,
+            )
+        )
+        raise
     audit.put(
         _record(
             event="ingestion",

@@ -19,6 +19,7 @@ docker compose up -d                     # Postgres + Redis (+ Ollama for Docker
 uv run alembic upgrade head              # apply DB migrations (URL from FORGE_DATABASE_URL)
 uv run --group evals python evals/run_rag_eval.py --baseline evals/baseline.json
                                          # RAG eval vs baseline (needs gateway+Ollama up)
+uv run arq forge.worker.WorkerSettings   # async ingestion worker (ADR-0017; needs Redis)
 ```
 
 ## Layout
@@ -29,8 +30,10 @@ uv run --group evals python evals/run_rag_eval.py --baseline evals/baseline.json
 - `src/forge/keys.py` — ApiKey model and key generation (hash-only storage)
 - `src/forge/api/` — HTTP routes (OpenAI-compatible: `/v1/chat/completions`, `/v1/models`)
 - `src/forge/gateway/` — provider routing via LiteLLM
-- `src/forge/rag/` — RAG engine: chunking, embeddings, Qdrant store, parsers,
-  scrub-before-embed ingestion (ADR-0012)
+- `src/forge/rag/` — RAG engine: chunking, embeddings, Qdrant store (hybrid
+  dense+BM25), parsers, scrub-before-embed ingestion (ADR-0012/0016)
+- `src/forge/worker.py` + `src/forge/jobs.py` — arq async ingestion worker and
+  durable job records (ADR-0017)
 - `tests/` — pytest, async mode auto, httpx ASGITransport (no live server needed)
 
 ## Conventions

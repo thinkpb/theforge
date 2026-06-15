@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forge-worker
+  namespace: forge
+  labels:
+    app: forge-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: forge-worker
+  template:
+    metadata:
+      labels:
+        app: forge-worker
+    spec:
+      containers:
+        - name: worker
+          image: forge-gateway:0.1.0
+          # same image as the gateway; different entrypoint (ADR-0017)
+          command: ["/app/.venv/bin/arq", "forge.worker.WorkerSettings"]
+          envFrom:
+            - configMapRef:
+                name: forge-gateway-config
+            - secretRef:
+                name: forge-gateway-secrets
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              # Presidio NER + embedding model are the memory floor
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 10001

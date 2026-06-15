@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from arq.connections import RedisSettings, create_pool
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from redis import asyncio as aioredis
 
 from forge import __version__
@@ -9,7 +11,7 @@ from forge.audit import AuditBuffer
 from forge.config import get_settings
 from forge.db import create_engine_and_factory
 from forge.pii import PIIScrubber
-from forge.rag.store import VectorStore
+from forge.rag.store import CollectionSchemaMismatch, VectorStore
 from forge.ratelimit import RateLimiter
 
 
@@ -40,9 +42,12 @@ async def _lifespan(app: FastAPI):
         enabled=settings.rate_limit_enabled,
     )
     app.state.vector_store = VectorStore(settings.qdrant_url)
+    # arq pool for enqueuing async ingestion jobs (ADR-0017)
+    app.state.arq = await create_pool(RedisSettings.from_dsn(settings.redis_url))
     yield
     await buffer.stop()
     await app.state.vector_store.close()
+    await app.state.arq.aclose()
     await redis.aclose()
     await engine.dispose()
 
@@ -60,6 +65,11 @@ def create_app() -> FastAPI:
     app.include_router(keys.router)
     app.include_router(costs.router)
     app.include_router(rag.router)
+
+    @app.exception_handler(CollectionSchemaMismatch)
+    async def _schema_mismatch(request: Request, exc: CollectionSchemaMismatch) -> JSONResponse:
+        return JSONResponse(status_code=409, content={"detail": str(exc)})
+
     return app
 
 

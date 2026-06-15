@@ -16,6 +16,11 @@ from qdrant_client import AsyncQdrantClient, models
 SEARCH_MODES = {"hybrid", "dense"}
 
 
+class CollectionSchemaMismatch(Exception):
+    """An existing collection predates the current vector schema (ADR-0016).
+    Surfaces the re-index debt as an actionable error instead of an opaque 400."""
+
+
 def collection_for_team(prefix: str, team: str) -> str:
     safe = re.sub(r"[^a-zA-Z0-9_-]", "_", team)
     return f"{prefix}_{safe}"
@@ -29,17 +34,26 @@ class VectorStore:
         await self._client.close()
 
     async def ensure_collection(self, name: str, dim: int) -> None:
-        if not await self._client.collection_exists(name):
-            await self._client.create_collection(
-                collection_name=name,
-                vectors_config={
-                    "dense": models.VectorParams(size=dim, distance=models.Distance.COSINE)
-                },
-                sparse_vectors_config={
-                    # IDF lives server-side; the client sends term frequencies
-                    "bm25": models.SparseVectorParams(modifier=models.Modifier.IDF)
-                },
-            )
+        if await self._client.collection_exists(name):
+            info = await self._client.get_collection(name)
+            vectors = info.config.params.vectors
+            if not (isinstance(vectors, dict) and "dense" in vectors):
+                raise CollectionSchemaMismatch(
+                    f"Collection {name!r} predates the hybrid-search schema "
+                    "(ADR-0016): it has no named 'dense' vector. Re-ingest its "
+                    "documents to rebuild it (the re-index job is pending)."
+                )
+            return
+        await self._client.create_collection(
+            collection_name=name,
+            vectors_config={
+                "dense": models.VectorParams(size=dim, distance=models.Distance.COSINE)
+            },
+            sparse_vectors_config={
+                # IDF lives server-side; the client sends term frequencies
+                "bm25": models.SparseVectorParams(modifier=models.Modifier.IDF)
+            },
+        )
 
     async def upsert_chunks(
         self,
@@ -52,7 +66,10 @@ class VectorStore:
     ) -> None:
         points = [
             models.PointStruct(
-                id=str(uuid.uuid4()),
+                # deterministic from (doc_id, chunk_index): a re-run with the same
+                # doc_id overwrites these points instead of duplicating them, which
+                # is what makes async ingestion safe under arq retries (ADR-0017)
+                id=str(uuid.uuid5(doc_id, str(index))),
                 vector={"dense": dense, "bm25": sparse},
                 payload={
                     "text": text,

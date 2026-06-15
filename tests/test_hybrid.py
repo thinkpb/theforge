@@ -74,6 +74,29 @@ async def test_unknown_mode_rejected(client, auth_headers):
     assert "Unknown search mode" in response.json()["detail"]
 
 
+async def test_legacy_collection_gives_clear_409(client, auth_headers, fake_embeddings):
+    """A pre-hybrid collection (single unnamed vector) must fail with an
+    actionable re-index message, not an opaque Qdrant 400 (ADR-0016/0017)."""
+    from qdrant_client import AsyncQdrantClient, models
+
+    from forge.config import get_settings
+    from forge.rag.store import collection_for_team
+
+    settings = get_settings()
+    name = collection_for_team(settings.qdrant_collection_prefix, "admin")
+    legacy = AsyncQdrantClient(url=settings.qdrant_url)
+    await legacy.create_collection(
+        name, vectors_config=models.VectorParams(size=768, distance=models.Distance.COSINE)
+    )
+    await legacy.close()
+
+    response = await client.post(
+        "/v1/documents", headers=auth_headers, json={"text": "hello world"}
+    )
+    assert response.status_code == 409
+    assert "re-ingest" in response.json()["detail"].lower()
+
+
 async def test_sparse_index_holds_scrubbed_text_only(client, auth_headers, useless_dense):
     """The BM25 index is readable token weights — scrub-before-embed must hold
     for the sparse leg too: an identifier query can't match anything."""

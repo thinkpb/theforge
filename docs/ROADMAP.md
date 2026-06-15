@@ -82,7 +82,9 @@ hierarchical) · retrieval patterns (similarity, hybrid, reranking) · Celery + 
 - [x] Hybrid search — dense + BM25 sparse with server-side RRF fusion; measured
       +3.7pp hit@1 on exact-token queries (ADR-0016); cross-encoder reranking
       deferred with its target number visible in the baseline
-- [ ] Async ingestion jobs for large documents (queue + workers)
+- [x] Async ingestion jobs for large documents — arq worker + durable job records
+      (ADR-0017); same scrub→embed→store pipeline off the request path; verified
+      live through a separate worker process
 - [x] Gold eval dataset (synthetic healthcare/legal Q&A) + RAGAS regression
       pipeline — black-box harness, retrieval baseline committed (ADR-0014);
       caught and fixed an sm-model name leak on its first run
