@@ -4,8 +4,8 @@ Self-hostable AI infrastructure platform for regulated industries (healthcare, l
 fintech). **Compliance-by-default is the core design principle** (docs/adr/0005):
 every request audit-logged, PII scrubbing in the pipeline, from Phase 1 — not bolted
 on later. Built in five phases — see docs/ROADMAP.md for the plan and current
-milestone checklist. **Phase 1 (Compliance-Core Gateway) is complete**; currently in
-**Phase 2: the PII-Safe RAG Engine**.
+milestone checklist. **Phases 1 (Compliance-Core Gateway) and 2 (PII-Safe RAG
+Engine) are complete**; currently in **Phase 3: the Agent Runtime**.
 Positioning and competitive landscape: docs/POSITIONING.md.
 
 ## Commands

@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     rag_chunk_strategy: str = "sentence"
     # hybrid = dense + BM25 with RRF fusion; "dense" opts down (ADR-0016)
     rag_search_mode: str = "hybrid"
+    # fence + instruct against prompt injection in retrieved docs (ADR-0018);
+    # the red-team eval toggles this off to measure the delta
+    rag_injection_defense: bool = True
     rag_max_upload_bytes: int = 10 * 1024 * 1024  # synchronous ingestion cap
 
     # alias -> ordered fallback aliases tried on transient upstream failures

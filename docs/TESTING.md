@@ -82,11 +82,14 @@ suites land with Phase 2/3.**
   ```
 
   Runs on every pipeline change, not on a schedule.
-- **Prompt injection tests** — a fixture corpus of injection attempts (instruction
-  overrides, hidden HTML comments, role hijacks) planted in documents; responses
-  must not follow injected instructions. Becomes critical when RAG (untrusted
-  document content enters prompts) and agents (tool use amplifies blast radius)
-  land.
+- **Prompt injection tests** — *active* for the RAG pipeline (ADR-0018):
+  `evals/injection/corpus.jsonl` holds synthetic poisoned documents (instruction
+  overrides, forged system roles, hidden HTML comments, fence-break, smuggled-as-
+  data), each with a canary the injection tries to emit;
+  `evals/redteam_injection.py` measures resistance (defended vs undefended).
+  CI asserts the defense is structurally applied (`tests/test_injection.py`); the
+  resistance rate is on-demand and model-dependent. Agent-side stakes (tool use
+  amplifies blast radius) land in Phase 3.
 - **Jailbreak scanning** — [Garak](https://github.com/NVIDIA/garak) against the
   gateway's REST surface, monthly and before each release.
 
@@ -119,7 +122,7 @@ milestone's foundation.
 | Load testing | Locust or k6 | weekly + pre-release | Phase 1 (with rate limiting) |
 | RAG evals | RAGAS + gold dataset (`evals/`) | every model/chunking change | ✅ now |
 | LLM test suite | DeepEval | every PR to main | Phase 2 |
-| Prompt injection | custom fixture corpus | every pipeline change | Phase 2–3 |
+| Prompt injection | custom corpus + red-team eval (`evals/injection/`) | every pipeline change | ✅ now (RAG) |
 | Security/red team | Garak + custom | monthly + before release | Phase 3 |
 | Production drift | LangFuse dashboards + audit log | continuous | Phase 4–5 |
 | Shadow deployments | custom | before any model swap | Phase 4 |

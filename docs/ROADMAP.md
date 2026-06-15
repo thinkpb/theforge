@@ -48,7 +48,7 @@ Kubernetes · JWT auth + API key management
 - [x] Docker Compose deploy → first K8s manifests — non-root image + kustomize
       manifests, verified on a live minikube cluster (migrations, e2e, audit)
 
-## Phase 2 — The RAG Engine, PII-Safe (Weeks 7–12) 🚧
+## Phase 2 — The RAG Engine, PII-Safe (Weeks 7–12) ✅
 
 Document ingestion and retrieval pipeline. PDFs, Word docs, web pages in;
 semantically searchable chunks out — with PII detected and handled **at ingestion
@@ -88,9 +88,11 @@ hierarchical) · retrieval patterns (similarity, hybrid, reranking) · Celery + 
 - [x] Gold eval dataset (synthetic healthcare/legal Q&A) + RAGAS regression
       pipeline — black-box harness, retrieval baseline committed (ADR-0014);
       caught and fixed an sm-model name leak on its first run
-- [ ] Prompt-injection fixture corpus for document pipelines (TESTING.md Layer 3)
+- [x] Prompt-injection fixture corpus for document pipelines (TESTING.md Layer 3)
+      — fenced untrusted context + defang, synthetic poisoned corpus, red-team
+      eval (ADR-0018); measured defended 8/8 vs undefended 7/8 on llama3.2:1b
 
-## Phase 3 — The Agent Runtime, Fully Audited (Weeks 13–20)
+## Phase 3 — The Agent Runtime, Fully Audited (Weeks 13–20) 🚧
 
 A runtime where teams define, deploy, and run agents with tool use — self-hostable
 and extensible. Every agent step, tool call, and decision lands in the same audit

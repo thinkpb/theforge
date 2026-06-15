@@ -101,6 +101,7 @@ async def chat_completions(
             store=store,
             audit=audit,
             api_key_hash=ctx.key_hash,
+            defense=settings.rag_injection_defense,
         )
 
     gateway_args: dict[str, Any] = dict(
