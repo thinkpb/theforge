@@ -83,6 +83,24 @@ class PIIScrubber:
                         part = {**part, "text": text}
                     parts.append(part)
                 message = {**message, "content": parts}
+            # Agent tool calls (ADR-0019): the assistant's tool_calls are
+            # re-sent to the provider on the next turn, so their arguments are
+            # part of the outbound boundary too. Scrub the arguments JSON string
+            # in place (markers stay valid inside the JSON).
+            tool_calls = message.get("tool_calls")
+            if tool_calls:
+                new_calls = []
+                for call in tool_calls:
+                    fn = (call or {}).get("function") or {}
+                    arguments = fn.get("arguments")
+                    if isinstance(arguments, str) and arguments:
+                        scrubbed_args, count = await asyncio.to_thread(
+                            self._scrub_text, arguments
+                        )
+                        total += count
+                        call = {**call, "function": {**fn, "arguments": scrubbed_args}}
+                    new_calls.append(call)
+                message = {**message, "tool_calls": new_calls}
             scrubbed.append(message)
         return scrubbed, total
 

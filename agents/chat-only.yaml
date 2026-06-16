@@ -1,0 +1,7 @@
+# A deliberately tool-less agent — used to demonstrate that an agent with an
+# empty allow-list cannot call any tool, even if asked (ADR-0019).
+name: chat-only
+model: llama3.2
+system_prompt: You are a concise assistant. Answer directly and briefly.
+tools: []
+max_steps: 2

@@ -1,0 +1,15 @@
+# Example agent (ADR-0019): deployed by config, not code.
+# Drop a YAML file in this directory and it's available at /v1/agents/<name>.
+# Tool-calling needs a tool-capable model — llama3.2:1b emits tool calls as
+# plain text and won't drive the loop. The 8B alias works (ADR-0019).
+name: research-assistant
+model: llama3.1
+system_prompt: >
+  You are a careful research assistant for a regulated organization. Call
+  document_search AT MOST ONCE to gather context, then immediately write your
+  final answer using ONLY what it returned — do not call the tool again. If the
+  documents don't contain the answer, say you don't know. Never invent facts,
+  names, or numbers.
+tools:
+  - document_search
+max_steps: 4

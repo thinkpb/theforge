@@ -34,6 +34,8 @@ uv run arq forge.worker.WorkerSettings   # async ingestion worker (ADR-0017; nee
   dense+BM25), parsers, scrub-before-embed ingestion (ADR-0012/0016)
 - `src/forge/worker.py` + `src/forge/jobs.py` — arq async ingestion worker and
   durable job records (ADR-0017)
+- `src/forge/agents/` — agent runtime: YAML specs, tool registry, tool-calling
+  loop with allow-listed tool authority (ADR-0019); agents in `agents/*.yaml`
 - `tests/` — pytest, async mode auto, httpx ASGITransport (no live server needed)
 
 ## Conventions

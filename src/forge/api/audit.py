@@ -30,6 +30,8 @@ async def list_audit(
                 "request_id": str(row.request_id),
                 "ts": row.ts.isoformat(),
                 "event": row.event,
+                "agent": row.agent,
+                "tool": row.tool,
                 "api_key_hash": row.api_key_hash,
                 "model_alias": row.model_alias,
                 "upstream_model": row.upstream_model,

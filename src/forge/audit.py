@@ -38,8 +38,12 @@ class AuditLog(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     request_id: Mapped[uuid.UUID] = mapped_column(Uuid)
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    # what kind of operation: 'completion' | 'ingestion' | 'search' (more later)
+    # what kind of operation: 'completion' | 'ingestion' | 'search' |
+    # 'agent_run' | 'agent_step' | 'tool_call'
     event: Mapped[str] = mapped_column(server_default="completion", default="completion")
+    # agent runtime attribution (ADR-0019): which agent, which tool (if any)
+    agent: Mapped[str | None]
+    tool: Mapped[str | None]
     api_key_hash: Mapped[str]
     model_alias: Mapped[str]
     upstream_model: Mapped[str | None]
@@ -94,6 +98,8 @@ class AuditRecord:
     cost_usd: float | None = None
     pii_redactions: int | None = None
     event: str = "completion"
+    agent: str | None = None
+    tool: str | None = None
 
 
 class AuditBufferFull(Exception):

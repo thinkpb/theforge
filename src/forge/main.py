@@ -6,7 +6,8 @@ from fastapi.responses import JSONResponse
 from redis import asyncio as aioredis
 
 from forge import __version__
-from forge.api import audit, chat, costs, health, keys, rag
+from forge.agents.spec import load_agents
+from forge.api import agents, audit, chat, costs, health, keys, rag
 from forge.audit import AuditBuffer
 from forge.config import get_settings
 from forge.db import create_engine_and_factory
@@ -42,6 +43,8 @@ async def _lifespan(app: FastAPI):
         enabled=settings.rate_limit_enabled,
     )
     app.state.vector_store = VectorStore(settings.qdrant_url)
+    # agent specs loaded from config at startup (ADR-0019)
+    app.state.agents = load_agents(settings.agents_dir)
     # arq pool for enqueuing async ingestion jobs (ADR-0017)
     app.state.arq = await create_pool(RedisSettings.from_dsn(settings.redis_url))
     yield
@@ -65,6 +68,7 @@ def create_app() -> FastAPI:
     app.include_router(keys.router)
     app.include_router(costs.router)
     app.include_router(rag.router)
+    app.include_router(agents.router)
 
     @app.exception_handler(CollectionSchemaMismatch)
     async def _schema_mismatch(request: Request, exc: CollectionSchemaMismatch) -> JSONResponse:

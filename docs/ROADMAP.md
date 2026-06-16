@@ -110,6 +110,19 @@ agent state management + persistence · streaming (SSE/WebSockets) · A2A patter
 - "Audit trails for agents — proving what your AI actually did"
 - "Agent reliability at scale — retries, fallbacks, and observability"
 
+### Milestones
+- [x] Agent runtime foundation — YAML-defined agents, tool registry, tool-calling
+      loop, per-agent tool allow-list (authority control), document_search tool,
+      every step + tool call audited, PII boundary held on agent calls (ADR-0019);
+      verified live (llama3.1:8b), hardened by adversarial review (10 findings)
+- [ ] Tool library — additional built-in tools (each with explicit authority + audit)
+- [ ] MCP server — expose Forge tools over the Model Context Protocol
+- [ ] Agent state persistence — durable agent_runs/steps records, inspectable
+- [ ] Streaming agent runs (SSE) — stream steps and tokens
+- [ ] Agent reliability — step/timeout limits, loop detection, retries/fallback
+- [ ] Injection → tool-abuse red-team — prove an injected instruction can't
+      escalate tool use beyond the allow-list (ties ADR-0018 to agents)
+
 ## Phase 4 — MLOps Pipeline (Weeks 21–28)
 
 Fine-tuning workflow and model registry. Submit fine-tuning jobs, track experiments,

@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     # fence + instruct against prompt injection in retrieved docs (ADR-0018);
     # the red-team eval toggles this off to measure the delta
     rag_injection_defense: bool = True
+
+    # Agent runtime (ADR-0019). Agents are YAML specs loaded from agents_dir;
+    # max_steps bounds the tool-calling loop platform-wide.
+    agents_dir: str = "agents"
+    agent_max_steps: int = 6
     rag_max_upload_bytes: int = 10 * 1024 * 1024  # synchronous ingestion cap
 
     # alias -> ordered fallback aliases tried on transient upstream failures
@@ -82,6 +87,8 @@ class Settings(BaseSettings):
         "claude-fable-5": "anthropic/claude-fable-5",
         "claude-sonnet-4-6": "anthropic/claude-sonnet-4-6",
         "llama3.2": "ollama/llama3.2:1b",
+        # 8B handles structured tool-calling; 1b does not (ADR-0019)
+        "llama3.1": "ollama/llama3.1:8b",
     }
 
 
