@@ -7,7 +7,7 @@ from redis import asyncio as aioredis
 
 from forge import __version__
 from forge.agents.spec import load_agents
-from forge.api import agents, audit, chat, costs, health, keys, rag
+from forge.api import agents, audit, chat, costs, health, keys, mcp, rag
 from forge.audit import AuditBuffer
 from forge.config import get_settings
 from forge.db import create_engine_and_factory
@@ -69,6 +69,7 @@ def create_app() -> FastAPI:
     app.include_router(costs.router)
     app.include_router(rag.router)
     app.include_router(agents.router)
+    app.include_router(mcp.router)
 
     @app.exception_handler(CollectionSchemaMismatch)
     async def _schema_mismatch(request: Request, exc: CollectionSchemaMismatch) -> JSONResponse:

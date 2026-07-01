@@ -36,6 +36,8 @@ uv run arq forge.worker.WorkerSettings   # async ingestion worker (ADR-0017; nee
   durable job records (ADR-0017)
 - `src/forge/agents/` — agent runtime: YAML specs, tool registry, tool-calling
   loop with allow-listed tool authority (ADR-0019); agents in `agents/*.yaml`
+- `src/forge/mcp.py` + `src/forge/api/mcp.py` — MCP server (JSON-RPC 2.0 at `/mcp`)
+  exposing the tool registry to MCP clients (ADR-0021)
 - `tests/` — pytest, async mode auto, httpx ASGITransport (no live server needed)
 
 ## Conventions
