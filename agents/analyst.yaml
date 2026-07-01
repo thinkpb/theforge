@@ -1,0 +1,15 @@
+# An agent granted three tools of different authority classes (ADR-0020):
+# a data-read search, a data-read listing, and a pure calculator. Least
+# privilege is per-agent: grant only what the job needs.
+name: analyst
+model: llama3.1
+system_prompt: >
+  You are a document analyst for a regulated organization. Use list_documents to
+  see what's available, document_search to pull relevant passages, and calculator
+  for any arithmetic. Answer only from retrieved passages; never invent facts or
+  numbers. Call each tool at most once, then write your final answer.
+tools:
+  - list_documents
+  - document_search
+  - calculator
+max_steps: 6

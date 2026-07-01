@@ -115,7 +115,8 @@ agent state management + persistence · streaming (SSE/WebSockets) · A2A patter
       loop, per-agent tool allow-list (authority control), document_search tool,
       every step + tool call audited, PII boundary held on agent calls (ADR-0019);
       verified live (llama3.1:8b), hardened by adversarial review (10 findings)
-- [ ] Tool library — additional built-in tools (each with explicit authority + audit)
+- [x] Tool library — calculator (pure, safe AST eval) + list_documents (team-read),
+      authority classes & least privilege (ADR-0020); verified live
 - [ ] MCP server — expose Forge tools over the Model Context Protocol
 - [ ] Agent state persistence — durable agent_runs/steps records, inspectable
 - [ ] Streaming agent runs (SSE) — stream steps and tokens

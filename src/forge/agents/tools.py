@@ -9,6 +9,8 @@ Tool handlers receive a ToolContext scoped to the caller's team, so a tool can
 only ever touch that team's data — the same isolation as the rest of the platform.
 """
 
+import ast
+import operator
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
@@ -17,7 +19,7 @@ from forge.audit import AuditBuffer
 from forge.config import Settings
 from forge.pii import PIIScrubber
 from forge.rag.ingest import search_documents
-from forge.rag.store import VectorStore
+from forge.rag.store import VectorStore, collection_for_team
 
 
 @dataclass
@@ -82,4 +84,80 @@ DOCUMENT_SEARCH = Tool(
     handler=_document_search,
 )
 
-REGISTRY: dict[str, Tool] = {DOCUMENT_SEARCH.name: DOCUMENT_SEARCH}
+
+async def _list_documents(ctx: ToolContext) -> str:
+    """List the titles of documents in the team's collection — a read tool,
+    distinct authority from search, still team-scoped (ADR-0020)."""
+    collection = collection_for_team(
+        ctx.settings.qdrant_collection_prefix, ctx.team
+    )
+    titles = await ctx.store.list_titles(collection)
+    if not titles:
+        return "No documents in this collection."
+    return "\n".join(f"- {t}" for t in titles)
+
+
+LIST_DOCUMENTS = Tool(
+    name="list_documents",
+    description="List the titles of documents available in the team's collection.",
+    parameters={"type": "object", "properties": {}},
+    handler=_list_documents,
+)
+
+
+# --- calculator: a pure tool that needs no data access at all (ADR-0020) ------
+
+_CALC_OPS: dict[type, Any] = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+}
+_CALC_MAX_EXPONENT = 1000  # bound ** so 2**10**9 can't DoS the worker
+
+
+def _calc_eval(node: ast.AST) -> float:
+    if isinstance(node, ast.Constant) and isinstance(node.value, int | float):
+        return node.value
+    if isinstance(node, ast.BinOp) and type(node.op) in _CALC_OPS:
+        left, right = _calc_eval(node.left), _calc_eval(node.right)
+        if isinstance(node.op, ast.Pow) and abs(right) > _CALC_MAX_EXPONENT:
+            raise ValueError("exponent too large")
+        return _CALC_OPS[type(node.op)](left, right)
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _CALC_OPS:
+        return _CALC_OPS[type(node.op)](_calc_eval(node.operand))
+    raise ValueError("unsupported expression")
+
+
+async def _calculator(ctx: ToolContext, expression: str) -> str:
+    # no eval(): parse to an AST and walk only arithmetic nodes — names, calls,
+    # attribute access, etc. all raise. A calculator can't touch data or code.
+    try:
+        tree = ast.parse(expression, mode="eval")
+        return str(_calc_eval(tree.body))
+    except Exception:
+        return f"Error: could not evaluate {expression!r} as arithmetic."
+
+
+CALCULATOR = Tool(
+    name="calculator",
+    description="Evaluate a basic arithmetic expression (+ - * / // % ** and parentheses).",
+    parameters={
+        "type": "object",
+        "properties": {"expression": {"type": "string", "description": "e.g. (2 + 3) * 4"}},
+        "required": ["expression"],
+    },
+    handler=_calculator,
+)
+
+
+REGISTRY: dict[str, Tool] = {
+    DOCUMENT_SEARCH.name: DOCUMENT_SEARCH,
+    LIST_DOCUMENTS.name: LIST_DOCUMENTS,
+    CALCULATOR.name: CALCULATOR,
+}

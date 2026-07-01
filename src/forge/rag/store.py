@@ -84,6 +84,29 @@ class VectorStore:
         ]
         await self._client.upsert(collection_name=collection, points=points)
 
+    async def list_titles(self, collection: str) -> list[str]:
+        """Distinct document titles in a collection (for the list_documents
+        agent tool). Scrolls payloads only — no vectors."""
+        if not await self._client.collection_exists(collection):
+            return []
+        titles: set[str] = set()
+        offset = None
+        while True:
+            points, offset = await self._client.scroll(
+                collection_name=collection,
+                limit=256,
+                offset=offset,
+                with_payload=["title"],
+                with_vectors=False,
+            )
+            for point in points:
+                title = (point.payload or {}).get("title")
+                if title:
+                    titles.add(title)
+            if offset is None:
+                break
+        return sorted(titles)
+
     async def search(
         self,
         collection: str,
