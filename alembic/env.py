@@ -17,6 +17,7 @@ if config.config_file_name is not None:
 
 # The database URL comes from Forge settings (FORGE_DATABASE_URL / .env), so
 # alembic.ini never holds credentials and migrations hit the same DB as the app.
+import forge.agents.runs  # noqa: E402, F401
 import forge.audit  # noqa: E402, F401 — register models on Base.metadata
 import forge.jobs  # noqa: E402, F401
 import forge.keys  # noqa: E402, F401

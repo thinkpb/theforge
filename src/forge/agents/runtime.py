@@ -100,14 +100,16 @@ async def run_agent(
     scrubber: PIIScrubber,
     audit: AuditBuffer,
     tool_ctx: ToolContext,
+    run_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
-    run_id = uuid.uuid4()
+    # the caller (endpoint) may supply the run id so the durable agent_runs
+    # record and the audit events share one id (ADR-0022)
+    run_id = run_id or uuid.uuid4()
     started = time.perf_counter()
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": spec.system_prompt},
         {"role": "user", "content": user_input},
     ]
-    tool_schemas = [REGISTRY[t].schema() for t in spec.tools]
     trace: list[dict[str, Any]] = []
     seen_calls: set[tuple[str, str]] = set()  # break identical-call loops
     force_answer = False  # set after a repeated call: withhold tools next turn
@@ -116,6 +118,9 @@ async def run_agent(
     # scrubber fault, malformed response, audit hiccup) — audit completeness is a
     # compliance control, not best-effort.
     try:
+        # inside the try so even a bad spec audits an agent_run error (specs are
+        # validated at load time, so this is defense in depth)
+        tool_schemas = [REGISTRY[t].schema() for t in spec.tools]
         for _ in range(spec.max_steps):
             offered = [] if force_answer else tool_schemas
             message = await _provider_step(spec, messages, offered, settings, scrubber)

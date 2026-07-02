@@ -120,7 +120,9 @@ agent state management + persistence · streaming (SSE/WebSockets) · A2A patter
 - [x] MCP server — Forge tools over MCP (JSON-RPC 2.0 at /mcp): initialize,
       tools/list, tools/call, batches; same auth + team-scope + audit (ADR-0021);
       verified live over HTTP
-- [ ] Agent state persistence — durable agent_runs/steps records, inspectable
+- [x] Agent state persistence — durable, team-scoped agent_runs records (metadata-only
+      step summary, ADR-0022); GET /v1/agents/runs[/{id}]; hardened by adversarial
+      review (every exit path finishes the run); verified live
 - [ ] Streaming agent runs (SSE) — stream steps and tokens
 - [ ] Agent reliability — step/timeout limits, loop detection, retries/fallback
 - [ ] Injection → tool-abuse red-team — prove an injected instruction can't
